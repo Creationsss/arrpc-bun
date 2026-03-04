@@ -2,7 +2,6 @@ import { EventEmitter } from "node:events";
 import { env } from "bun";
 import {
 	ACTIVITY_FLAG_INSTANCE,
-	ActivityType,
 	CLI_ARG_NO_PROCESS_SCANNING,
 	DEFAULT_SOCKET_ID,
 	DISCORD_API_ENDPOINT,
@@ -151,7 +150,6 @@ export default class RPCServer extends EventEmitter {
 		this.emit("activity", {
 			activity: activity
 				? {
-						type: ActivityType.PLAYING,
 						...(activity as Record<string, unknown>),
 					}
 				: null,
@@ -229,7 +227,6 @@ export default class RPCServer extends EventEmitter {
 				}
 				this.emit("activity", {
 					activity: {
-						type: ActivityType.PLAYING,
 						application_id: socket.clientId,
 						name: socket.clientName || "",
 						metadata,
@@ -244,7 +241,6 @@ export default class RPCServer extends EventEmitter {
 				sendMessage(socket, {
 					cmd,
 					data: {
-						type: ActivityType.PLAYING,
 						name: socket.clientName || "",
 						application_id: socket.clientId,
 						...activity,
