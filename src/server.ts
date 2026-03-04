@@ -151,8 +151,8 @@ export default class RPCServer extends EventEmitter {
 		this.emit("activity", {
 			activity: activity
 				? {
-						...(activity as Record<string, unknown>),
 						type: ActivityType.PLAYING,
+						...(activity as Record<string, unknown>),
 					}
 				: null,
 			pid,
@@ -229,9 +229,9 @@ export default class RPCServer extends EventEmitter {
 				}
 				this.emit("activity", {
 					activity: {
+						type: ActivityType.PLAYING,
 						application_id: socket.clientId,
 						name: socket.clientName || "",
-						type: ActivityType.PLAYING,
 						metadata,
 						flags: instance ? ACTIVITY_FLAG_INSTANCE : 0,
 						...activity,
@@ -244,10 +244,10 @@ export default class RPCServer extends EventEmitter {
 				sendMessage(socket, {
 					cmd,
 					data: {
-						...activity,
+						type: ActivityType.PLAYING,
 						name: socket.clientName || "",
 						application_id: socket.clientId,
-						type: ActivityType.PLAYING,
+						...activity,
 					},
 					evt: null,
 					nonce,
