@@ -72,46 +72,54 @@ async function parseSteamLibraries(): Promise<SteamLibrary[]> {
 	for (const steamPath of defaultSteamPaths) {
 		const vdfPath = join(steamPath, "steamapps", "libraryfolders.vdf");
 
+		if (env[ENV_DEBUG])
+			log.info("checking for libraryfolders.vdf at", vdfPath);
+
+		let content: string;
 		try {
-			if (env[ENV_DEBUG])
-				log.info("checking for libraryfolders.vdf at", vdfPath);
-			const content = await file(vdfPath).text();
+			content = await file(vdfPath).text();
+		} catch (error) {
+			if (env[ENV_DEBUG]) log.info("failed to read", vdfPath, error);
+			continue;
+		}
 
-			const libraryIdMatches = content.matchAll(/"(\d+)"\s*\{/g);
+		const libraryIdMatches = content.matchAll(/"(\d+)"\s*\{/g);
 
-			for (const match of libraryIdMatches) {
-				const libraryId = match[1];
-				if (!libraryId) continue;
+		for (const match of libraryIdMatches) {
+			const libraryId = match[1];
+			if (!libraryId) continue;
 
-				const libraryBlock = extractNestedBlock(
-					content,
-					match.index + match[0].length - 1,
-				);
-				if (!libraryBlock) continue;
+			const libraryBlock = extractNestedBlock(
+				content,
+				match.index + match[0].length - 1,
+			);
+			if (!libraryBlock) continue;
 
-				const pathMatch = libraryBlock.match(/"path"\s+"([^"]+)"/);
-				if (!pathMatch?.[1]) continue;
+			const pathMatch = libraryBlock.match(/"path"\s+"([^"]+)"/);
+			if (!pathMatch?.[1]) continue;
 
-				const libraryPath = pathMatch[1];
-				const steamappsPath = join(libraryPath, "steamapps");
+			const libraryPath = pathMatch[1];
+			const steamappsPath = join(libraryPath, "steamapps");
+
+			try {
 				const apps = await scanLibraryManifests(steamappsPath);
-
 				if (apps.length > 0) {
 					libraries.push({ path: libraryPath, apps });
 				}
+			} catch (error) {
+				if (env[ENV_DEBUG])
+					log.info("failed to scan library", steamappsPath, error);
 			}
+		}
 
-			if (libraries.length > 0) {
-				if (env[ENV_DEBUG]) {
-					log.info(`found ${libraries.length} Steam libraries:`);
-					for (const lib of libraries) {
-						log.info(`  - ${lib.path} (${lib.apps.length} apps)`);
-					}
+		if (libraries.length > 0) {
+			if (env[ENV_DEBUG]) {
+				log.info(`found ${libraries.length} Steam libraries:`);
+				for (const lib of libraries) {
+					log.info(`  - ${lib.path} (${lib.apps.length} apps)`);
 				}
-				break;
 			}
-		} catch (error) {
-			if (env[ENV_DEBUG]) log.info("failed to read", vdfPath, error);
+			break;
 		}
 	}
 
