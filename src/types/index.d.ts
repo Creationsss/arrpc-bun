@@ -22,5 +22,4 @@ export type {
 	DetectableApp,
 	Native,
 	ProcessInfo,
-	SteamApp,
 } from "./process.d.ts";

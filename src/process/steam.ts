@@ -7,7 +7,6 @@ import {
 	STEAM_COLOR,
 	STEAM_RUNTIME_PATHS,
 } from "../constants";
-import type { SteamApp } from "../types/process";
 import { createLogger } from "../utils";
 
 const log = createLogger("steam", ...STEAM_COLOR);
@@ -212,6 +211,24 @@ async function buildSteamLookup(): Promise<Map<string, string>> {
 	return lookup;
 }
 
+function ensureSteamLookupPromise(): Promise<Map<string, string>> {
+	if (steamAppLookupPromise) return steamAppLookupPromise;
+
+	steamAppLookupPromise = buildSteamLookup()
+		.catch((error) => {
+			if (env[ENV_DEBUG]) {
+				log.info("failed to build Steam lookup:", error);
+			}
+			return new Map<string, string>();
+		})
+		.then((lookup) => {
+			steamAppLookup = lookup;
+			return lookup;
+		});
+
+	return steamAppLookupPromise;
+}
+
 export function initSteamLookup(): void {
 	if (env[ENV_NO_STEAM]) {
 		if (env[ENV_DEBUG]) {
@@ -220,12 +237,8 @@ export function initSteamLookup(): void {
 		return;
 	}
 
-	if (!steamAppLookupPromise && !steamAppLookup) {
-		steamAppLookupPromise = buildSteamLookup().then((lookup) => {
-			steamAppLookup = lookup;
-			steamAppLookupPromise = null;
-			return lookup;
-		});
+	if (!steamAppLookup) {
+		ensureSteamLookupPromise();
 	}
 }
 
@@ -241,15 +254,7 @@ export async function resolveSteamApp(
 	}
 
 	if (!steamAppLookup) {
-		if (!steamAppLookupPromise) {
-			steamAppLookupPromise = buildSteamLookup().then((lookup) => {
-				steamAppLookup = lookup;
-				steamAppLookupPromise = null;
-				return lookup;
-			});
-		}
-
-		await steamAppLookupPromise;
+		await ensureSteamLookupPromise();
 		if (!steamAppLookup) {
 			return null;
 		}
@@ -303,24 +308,4 @@ export async function resolveSteamApp(
 
 	resolvedPathCache.set(processPath, null);
 	return null;
-}
-
-export async function initSteamApps(): Promise<SteamApp[]> {
-	const libraries = await parseSteamLibraries();
-	const steamApps: SteamApp[] = [];
-
-	for (const library of libraries) {
-		const results = await processLibraryApps(
-			library,
-			(appid, steamappsPath, manifest) => ({
-				appid,
-				name: manifest.name,
-				installdir: manifest.installdir,
-				libraryPath: steamappsPath,
-			}),
-		);
-		steamApps.push(...results);
-	}
-
-	return steamApps;
 }
