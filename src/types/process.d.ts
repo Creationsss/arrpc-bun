@@ -17,3 +17,14 @@ export type ProcessInfo = [number, string, string[]];
 export interface Native {
 	getProcesses: () => Promise<ProcessInfo[]>;
 }
+
+export interface GameState {
+	name: string;
+	pid: number;
+	timestamp: number;
+}
+
+export interface SteamLibrary {
+	path: string;
+	apps: string[];
+}

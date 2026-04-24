@@ -63,23 +63,41 @@ if (!fixesResponse.ok) {
 	);
 	print("Keeping existing detectable_fixes.json");
 } else {
-	const updatedFixes =
+	const upstreamFixes =
 		(await fixesResponse.json()) as Partial<DetectableApp>[];
+
+	const upstreamIds = new Set(
+		upstreamFixes
+			.map((x) => x.id)
+			.filter((id): id is string => Boolean(id)),
+	);
+	const localOnly = currentFixesData.filter(
+		(x) => x.id && !upstreamIds.has(x.id),
+	);
+	const mergedFixes = [...upstreamFixes, ...localOnly];
+
 	await write(
 		new URL("../detectable_fixes.json", import.meta.url),
-		JSON.stringify(updatedFixes, null, "\t"),
+		JSON.stringify(mergedFixes, null, "\t"),
 	);
 	print("Updated detectable_fixes.json");
 	print(
-		`  ${currentFixesData.length} -> ${updatedFixes.length} entries (+${updatedFixes.length - currentFixesData.length})`,
+		`  ${currentFixesData.length} -> ${mergedFixes.length} entries (upstream: ${upstreamFixes.length}, local-only preserved: ${localOnly.length})`,
 	);
 
-	const oldFixIds = currentFixesData.map((x) => x.id).filter(Boolean);
-	const newFixIds = updatedFixes.map((x) => x.id).filter(Boolean);
-	const newFixes = newFixIds.filter((x) => !oldFixIds.includes(x));
+	const oldFixIds = currentFixesData
+		.map((x) => x.id)
+		.filter((id): id is string => Boolean(id));
+	const newFixes = [...upstreamIds].filter((x) => !oldFixIds.includes(x));
 
 	if (newFixes.length > 0) {
-		print(`  New fixes: ${newFixes.join(", ")}`);
+		print(`  New upstream fixes: ${newFixes.join(", ")}`);
+	}
+	if (localOnly.length > 0) {
+		const localIds = localOnly
+			.map((x) => x.id)
+			.filter((id): id is string => Boolean(id));
+		print(`  Preserved local fixes: ${localIds.join(", ")}`);
 	}
 }
 

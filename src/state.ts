@@ -8,16 +8,15 @@ import {
 	STATE_FILE_MAX_INDEX,
 	STATE_FILE_PREFIX,
 } from "./constants";
-import type { ActivityPayload, ServerInfo, StateFileContent } from "./types";
+import type {
+	ActivityPayload,
+	ServerInfo,
+	Servers,
+	StateFileContent,
+} from "./types";
 import { createLogger } from "./utils";
 
 const log = createLogger("state", ...STATE_COLOR);
-
-interface Servers {
-	bridge?: ServerInfo;
-	websocket?: ServerInfo;
-	ipc?: { socketPath: string };
-}
 
 class StateManager {
 	private activities = new Map<string, ActivityPayload>();

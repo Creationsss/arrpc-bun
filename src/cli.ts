@@ -14,7 +14,12 @@ import {
 } from "./constants";
 import { createLogger, print, printError } from "./logger";
 import { isHyperVEnabled } from "./platform";
-import type { ActivityPayload, DetectableApp, StateFileContent } from "./types";
+import type {
+	ActivityPayload,
+	DetectableApp,
+	GameDisplayInfo,
+	StateFileContent,
+} from "./types";
 import { formatDuration, getPortRange } from "./utils";
 
 const log = createLogger("cli", ...CLI_COLOR);
@@ -213,14 +218,6 @@ export async function listDetected(): Promise<void> {
 	});
 
 	displayDetectedGamesFromMap(detected);
-}
-
-interface GameDisplayInfo {
-	name: string;
-	appId: string | undefined;
-	pid: number;
-	socketId: string;
-	startTime: number | null | undefined;
 }
 
 function displayDetectedGamesList(games: GameDisplayInfo[]): void {

@@ -63,5 +63,20 @@
 				"os": "linux"
 			}
 		]
+	},
+	{
+		"id": "496526645671231488",
+		"executables": [
+			{
+				"is_launcher": false,
+				"name": "game_x64/albion-online",
+				"os": "linux"
+			},
+			{
+				"is_launcher": true,
+				"name": "launcher/albion-online",
+				"os": "linux"
+			}
+		]
 	}
 ]

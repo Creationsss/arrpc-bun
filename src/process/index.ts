@@ -9,7 +9,7 @@ import {
 	PROCESS_SCAN_INTERVAL,
 } from "../constants";
 import { ignoreList } from "../ignore-list";
-import type { DetectableApp, Handlers, Native } from "../types";
+import type { DetectableApp, GameState, Handlers, Native } from "../types";
 import { createLogger } from "../utils";
 import * as Natives from "./native/index";
 import { initSteamLookup } from "./steam";
@@ -190,12 +190,6 @@ function matchesExecutable(
 	}
 
 	return true;
-}
-
-interface GameState {
-	name: string;
-	pid: number;
-	timestamp: number;
 }
 
 export default class ProcessServer {

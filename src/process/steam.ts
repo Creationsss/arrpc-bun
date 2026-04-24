@@ -7,14 +7,10 @@ import {
 	STEAM_COLOR,
 	STEAM_RUNTIME_PATHS,
 } from "../constants";
+import type { SteamLibrary } from "../types";
 import { createLogger } from "../utils";
 
 const log = createLogger("steam", ...STEAM_COLOR);
-
-interface SteamLibrary {
-	path: string;
-	apps: string[];
-}
 
 const defaultSteamPaths =
 	process.platform === "darwin"

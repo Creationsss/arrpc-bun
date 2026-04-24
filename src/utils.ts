@@ -1,3 +1,5 @@
+import type { PortBindOptions } from "./types";
+
 export { createLogger, logger, print, printError } from "./logger";
 
 export function normalizeTimestamps(
@@ -34,14 +36,6 @@ export function getPortRange(
 	useHyperV: boolean,
 ): [number, number] {
 	return useHyperV ? hyperVRange : normalRange;
-}
-
-export interface PortBindOptions<T> {
-	portRange: [number, number];
-	startPort?: number;
-	tryBind: (port: number) => T;
-	onPortInUse?: (port: number) => void;
-	serverName: string;
 }
 
 export function tryBindToPort<T>(options: PortBindOptions<T>): {

@@ -21,6 +21,12 @@ export interface ExtendedWebSocket {
 	lastPid?: number;
 }
 
+export interface WSData {
+	clientId: string;
+	encoding: string;
+	origin: string;
+}
+
 export interface Handlers {
 	connection: (socket: ExtendedSocket | ExtendedWebSocket) => void;
 	message: (

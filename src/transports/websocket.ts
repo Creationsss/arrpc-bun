@@ -14,16 +14,10 @@ import {
 import { ignoreList } from "../ignore-list";
 import { isHyperVEnabled } from "../platform";
 import { stateManager } from "../state";
-import type { ExtendedWebSocket, Handlers, RPCMessage } from "../types";
+import type { ExtendedWebSocket, Handlers, RPCMessage, WSData } from "../types";
 import { createLogger, getPortRange, tryBindToPort } from "../utils";
 
 const log = createLogger("websocket", ...WEBSOCKET_COLOR);
-
-type WSData = {
-	clientId: string;
-	encoding: string;
-	origin: string;
-};
 
 export default class WSServer {
 	private handlers!: Handlers;
