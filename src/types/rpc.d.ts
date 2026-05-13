@@ -10,8 +10,8 @@ export interface InviteArgs {
 }
 
 export interface DeepLinkArgs {
-	url?: string;
-	[key: string]: unknown;
+	type: string;
+	params?: Record<string, unknown>;
 }
 
 export type RPCArgs =

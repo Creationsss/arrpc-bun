@@ -4,7 +4,13 @@ export type {
 	ServerInfo,
 	StateFileContent,
 } from "./activity.d.ts";
-export type { BridgeMessage } from "./bridge.d.ts";
+export type {
+	BridgeAck,
+	BridgeAckType,
+	BridgeMessage,
+	BridgeRequest,
+	BridgeRequestType,
+} from "./bridge.d.ts";
 export type { GameDisplayInfo } from "./cli.d.ts";
 export type {
 	DetectableApp,

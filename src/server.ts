@@ -21,6 +21,7 @@ import IPCServer from "./transports/ipc";
 import WSServer from "./transports/websocket";
 import type {
 	ActivityPayload,
+	DeepLinkArgs,
 	ExtendedSocket,
 	ExtendedWebSocket,
 	Handlers,
@@ -283,15 +284,23 @@ export default class RPCServer extends EventEmitter {
 			}
 
 			case RPCCommand.DEEP_LINK: {
-				const deep_callback = (success: boolean) => {
+				const deepLinkArgs = args as DeepLinkArgs;
+
+				const callback = (success = true) => {
 					sendMessage(socket, {
 						cmd,
-						data: null,
+						data: success ? { success: true } : null,
 						evt: success ? null : RPCEvent.ERROR,
 						nonce,
 					});
 				};
-				this.emit("link", args, deep_callback);
+
+				if (!deepLinkArgs?.type) {
+					callback(false);
+					break;
+				}
+
+				this.emit("link", deepLinkArgs, callback);
 				break;
 			}
 		}

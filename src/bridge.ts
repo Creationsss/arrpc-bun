@@ -12,14 +12,65 @@ import {
 import { ignoreList } from "./ignore-list";
 import { isHyperVEnabled } from "./platform";
 import { stateManager } from "./state";
-import type { ActivityPayload, BridgeMessage } from "./types";
+import type {
+	ActivityPayload,
+	BridgeMessage,
+	BridgeRequestType,
+} from "./types";
 import { createLogger, getPortRange, tryBindToPort } from "./utils";
 
 const log = createLogger("bridge", ...BRIDGE_COLOR);
 
+const REQUEST_TIMEOUT_MS = 5000;
+
 const lastMsg = new Map<string, ActivityPayload>();
 const clients = new Set<ServerWebSocket<unknown>>();
 let bridgeServer: Server<unknown> | undefined;
+let nonceCounter = 0;
+
+interface PendingRequest {
+	resolve: (ok: boolean) => void;
+	timer: ReturnType<typeof setTimeout>;
+}
+
+const pendingRequests = new Map<string, PendingRequest>();
+
+function settleRequest(nonce: string, ok: boolean): void {
+	const pending = pendingRequests.get(nonce);
+	if (!pending) return;
+	clearTimeout(pending.timer);
+	pendingRequests.delete(nonce);
+	pending.resolve(ok);
+}
+
+export function request(
+	type: BridgeRequestType,
+	data: unknown,
+	callback: (ok: boolean) => void,
+): void {
+	if (clients.size === 0) {
+		if (env[ENV_DEBUG]) {
+			log.info(`no bridge clients to handle ${type}, replying false`);
+		}
+		callback(false);
+		return;
+	}
+
+	const nonce = String(++nonceCounter);
+	const timer = setTimeout(() => {
+		if (env[ENV_DEBUG]) {
+			log.info(`request ${type} (${nonce}) timed out`);
+		}
+		settleRequest(nonce, false);
+	}, REQUEST_TIMEOUT_MS);
+
+	pendingRequests.set(nonce, { resolve: callback, timer });
+
+	const payload = JSON.stringify({ type, nonce, data });
+	for (const client of clients) {
+		client.send(payload);
+	}
+}
 
 async function handleMessage(
 	ws: ServerWebSocket<unknown>,
@@ -74,6 +125,14 @@ async function handleMessage(
 			case "RELOAD_IGNORE_LIST": {
 				const result = await ignoreList.reload();
 				respond("IGNORE_LIST_RELOADED", result);
+				break;
+			}
+
+			case "ACK_INVITE":
+			case "ACK_GUILD_TEMPLATE":
+			case "ACK_LINK": {
+				if (typeof message.nonce !== "string") break;
+				settleRequest(message.nonce, message.data?.ok === true);
 				break;
 			}
 

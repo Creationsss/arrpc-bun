@@ -1,5 +1,9 @@
 import { env } from "bun";
-import { init as initBridge, send as sendToBridge } from "./bridge";
+import {
+	init as initBridge,
+	request as requestFromBridge,
+	send as sendToBridge,
+} from "./bridge";
 import { listDatabase, listDetected } from "./cli";
 import {
 	CLI_ARG_LIST_DATABASE,
@@ -57,6 +61,18 @@ server.on("activity", (data) => {
 	if (env[ENV_STATE_FILE]) {
 		stateManager.update(data);
 	}
+});
+
+server.on("invite", (code: string, callback: (ok: boolean) => void) => {
+	requestFromBridge("INVITE", { code }, callback);
+});
+
+server.on("guild-template", (code: string, callback: (ok: boolean) => void) => {
+	requestFromBridge("GUILD_TEMPLATE", { code }, callback);
+});
+
+server.on("link", (data: unknown, callback: (ok: boolean) => void) => {
+	requestFromBridge("LINK", data, callback);
 });
 
 if (env[ENV_PARENT_MONITOR]) {

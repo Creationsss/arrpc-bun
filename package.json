@@ -1,6 +1,6 @@
 {
 	"name": "arrpc-bun",
-	"version": "1.3.6",
+	"version": "1.4.0",
 	"description": "TypeScript/Bun port of arRPC - Open Discord RPC server",
 	"main": "src/index.ts",
 	"module": "src/index.ts",
