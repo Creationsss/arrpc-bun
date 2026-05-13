@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import { env } from "bun";
 import {
 	ACTIVITY_FLAG_INSTANCE,
+	ActivityType,
 	CLI_ARG_NO_PROCESS_SCANNING,
 	DEFAULT_SOCKET_ID,
 	DISCORD_API_ENDPOINT,
@@ -11,6 +12,7 @@ import {
 	ENV_NO_PROCESS_SCANNING,
 	IPCErrorCode,
 	MOCK_USER,
+	RPC_GENERIC_ERROR_CODE,
 	RPC_PROTOCOL_VERSION,
 	RPCCommand,
 	RPCEvent,
@@ -45,6 +47,8 @@ function sendMessage(
 }
 
 export default class RPCServer extends EventEmitter {
+	private processServer?: ProcessServer;
+
 	private constructor() {
 		super();
 	}
@@ -71,10 +75,14 @@ export default class RPCServer extends EventEmitter {
 			!process.argv.includes(CLI_ARG_NO_PROCESS_SCANNING) &&
 			!env[ENV_NO_PROCESS_SCANNING]
 		) {
-			new ProcessServer(handlers);
+			server.processServer = new ProcessServer(handlers);
 		}
 
 		return server;
+	}
+
+	rebroadcastActivities(): void {
+		this.processServer?.rebroadcastActivities();
 	}
 
 	shutdown(): void {
@@ -161,7 +169,7 @@ export default class RPCServer extends EventEmitter {
 
 	async onMessage(
 		socket: ExtendedSocket | ExtendedWebSocket,
-		{ cmd, args, nonce }: RPCMessage,
+		{ cmd, args, evt: subscriptionEvt, nonce }: RPCMessage,
 	): Promise<void> {
 		if (env[ENV_DEBUG]) {
 			log.info(
@@ -179,7 +187,8 @@ export default class RPCServer extends EventEmitter {
 				sendMessage(socket, {
 					cmd,
 					data: {
-						code: 1000,
+						code: RPC_GENERIC_ERROR_CODE,
+						message: "CONNECTIONS_CALLBACK is not supported",
 					},
 					evt: RPCEvent.ERROR,
 					nonce,
@@ -230,6 +239,7 @@ export default class RPCServer extends EventEmitter {
 					activity: {
 						application_id: socket.clientId,
 						name: socket.clientName || "",
+						type: ActivityType.PLAYING,
 						metadata,
 						flags: instance ? ACTIVITY_FLAG_INSTANCE : 0,
 						...activity,
@@ -244,6 +254,7 @@ export default class RPCServer extends EventEmitter {
 					data: {
 						name: socket.clientName || "",
 						application_id: socket.clientId,
+						type: ActivityType.PLAYING,
 						...activity,
 					},
 					evt: null,
@@ -289,7 +300,12 @@ export default class RPCServer extends EventEmitter {
 				const callback = (success = true) => {
 					sendMessage(socket, {
 						cmd,
-						data: success ? { success: true } : null,
+						data: success
+							? { success: true }
+							: {
+									code: RPC_GENERIC_ERROR_CODE,
+									message: "Deep link could not be handled",
+								},
 						evt: success ? null : RPCEvent.ERROR,
 						nonce,
 					});
@@ -303,6 +319,32 @@ export default class RPCServer extends EventEmitter {
 				this.emit("link", deepLinkArgs, callback);
 				break;
 			}
+
+			case RPCCommand.SUBSCRIBE:
+			case RPCCommand.UNSUBSCRIBE: {
+				sendMessage(socket, {
+					cmd,
+					data: { evt: subscriptionEvt ?? null },
+					evt: null,
+					nonce,
+				});
+				break;
+			}
+
+			default:
+				if (env[ENV_DEBUG]) {
+					log.info(`unknown cmd: ${cmd}`);
+				}
+				sendMessage(socket, {
+					cmd: cmd ?? "",
+					data: {
+						code: RPC_GENERIC_ERROR_CODE,
+						message: `Unknown command: ${cmd}`,
+					},
+					evt: RPCEvent.ERROR,
+					nonce,
+				});
+				break;
 		}
 	}
 }
