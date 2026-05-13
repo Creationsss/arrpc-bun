@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { file } from "bun";
 import embeddedDetectable from "../detectable.json";
 import embeddedFixes from "../detectable_fixes.json";
+import type { User } from "./types/user.d.ts";
 
 async function loadJson<T>(path: string, fallback: T): Promise<T> {
 	const f = file(path);
@@ -82,6 +83,11 @@ export const ENV_STATE_FILE = "ARRPC_STATE_FILE";
 export const ENV_DATA_DIR = "ARRPC_DATA_DIR";
 export const ENV_PARENT_MONITOR = "ARRPC_PARENT_MONITOR";
 export const ENV_IGNORE_LIST_FILE = "ARRPC_IGNORE_LIST_FILE";
+export const ENV_USER_ID = "ARRPC_USER_ID";
+export const ENV_USER_USERNAME = "ARRPC_USER_USERNAME";
+export const ENV_USER_GLOBAL_NAME = "ARRPC_USER_GLOBAL_NAME";
+export const ENV_USER_DISCRIMINATOR = "ARRPC_USER_DISCRIMINATOR";
+export const ENV_USER_AVATAR = "ARRPC_USER_AVATAR";
 
 export const CLI_ARG_NO_PROCESS_SCANNING = "--no-process-scanning";
 export const CLI_ARG_LIST_DATABASE = "--list-database";
@@ -258,7 +264,7 @@ export enum ActivityType {
 	COMPETING = 5,
 }
 
-export const MOCK_USER = {
+export const DEFAULT_USER: User = {
 	id: "1045800378228281345",
 	username: "arrpc",
 	discriminator: "0",
@@ -268,4 +274,4 @@ export const MOCK_USER = {
 	bot: false,
 	flags: 0,
 	premium_type: 0,
-} as const;
+};

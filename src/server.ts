@@ -11,7 +11,6 @@ import {
 	ENV_DEBUG,
 	ENV_NO_PROCESS_SCANNING,
 	IPCErrorCode,
-	MOCK_USER,
 	RPC_GENERIC_ERROR_CODE,
 	RPC_PROTOCOL_VERSION,
 	RPCCommand,
@@ -31,6 +30,7 @@ import type {
 	RPCMessage,
 	SetActivityArgs,
 } from "./types";
+import { getUser } from "./user";
 import { createLogger, normalizeTimestamps } from "./utils";
 
 const log = createLogger("server", ...SERVER_COLOR);
@@ -111,7 +111,7 @@ export default class RPCServer extends EventEmitter {
 					api_endpoint: DISCORD_API_ENDPOINT,
 					environment: DISCORD_ENVIRONMENT,
 				},
-				user: MOCK_USER,
+				user: getUser(),
 			},
 			evt: RPCEvent.READY,
 			nonce: null,

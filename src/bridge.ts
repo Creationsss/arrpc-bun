@@ -16,7 +16,9 @@ import type {
 	ActivityPayload,
 	BridgeMessage,
 	BridgeRequestType,
+	User,
 } from "./types";
+import { resetUser, setUser } from "./user";
 import { createLogger, getPortRange, tryBindToPort } from "./utils";
 
 const log = createLogger("bridge", ...BRIDGE_COLOR);
@@ -138,6 +140,34 @@ async function handleMessage(
 			case "ACK_LINK": {
 				if (typeof message.nonce !== "string") break;
 				settleRequest(message.nonce, message.data?.ok === true);
+				break;
+			}
+
+			case "SET_USER": {
+				const data = message.data;
+				if (!data || typeof data !== "object") break;
+				const patch: Partial<User> = {};
+				if (typeof data.id === "string") patch.id = data.id;
+				if (typeof data.username === "string")
+					patch.username = data.username;
+				if (typeof data.global_name === "string")
+					patch.global_name = data.global_name;
+				if (typeof data.discriminator === "string")
+					patch.discriminator = data.discriminator;
+				if (typeof data.avatar === "string" || data.avatar === null)
+					patch.avatar = data.avatar;
+				if (typeof data.bot === "boolean") patch.bot = data.bot;
+				if (typeof data.flags === "number") patch.flags = data.flags;
+				if (typeof data.premium_type === "number")
+					patch.premium_type = data.premium_type;
+				const updated = setUser(patch);
+				respond("SET_USER_ACK", { success: true, user: updated });
+				break;
+			}
+
+			case "RESET_USER": {
+				const updated = resetUser();
+				respond("RESET_USER_ACK", { success: true, user: updated });
 				break;
 			}
 

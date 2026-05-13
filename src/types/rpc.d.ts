@@ -32,7 +32,7 @@ export interface RPCData {
 		username?: string;
 		discriminator?: string;
 		global_name?: string;
-		avatar?: string;
+		avatar?: string | null;
 		avatar_decoration_data?: null;
 		bot?: boolean;
 		flags?: number;

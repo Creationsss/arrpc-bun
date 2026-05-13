@@ -34,4 +34,5 @@ export type {
 	WSData,
 } from "./socket.d.ts";
 export type { Servers } from "./state.d.ts";
+export type { User } from "./user.d.ts";
 export type { PortBindOptions } from "./utils.d.ts";
