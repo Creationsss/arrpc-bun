@@ -155,6 +155,7 @@ export default class RPCServer extends EventEmitter {
 		this.emit("activity", {
 			activity: activity
 				? {
+						type: ActivityType.PLAYING,
 						...(activity as Record<string, unknown>),
 					}
 				: null,
