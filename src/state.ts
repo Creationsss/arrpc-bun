@@ -1,4 +1,10 @@
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+	existsSync,
+	readFileSync,
+	renameSync,
+	unlinkSync,
+	writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env } from "bun";
@@ -129,12 +135,10 @@ class StateManager {
 			});
 		}
 
+		const tmpPath = `${this.stateFilePath}.tmp`;
 		try {
-			writeFileSync(
-				this.stateFilePath,
-				JSON.stringify(content, null, 2),
-				"utf-8",
-			);
+			writeFileSync(tmpPath, JSON.stringify(content, null, 2), "utf-8");
+			renameSync(tmpPath, this.stateFilePath);
 			if (env[ENV_DEBUG]) {
 				log.info(
 					`wrote state file: ${content.activities.length} activities`,
@@ -142,6 +146,9 @@ class StateManager {
 			}
 		} catch (error) {
 			log.error(`failed to write state file: ${error}`);
+			try {
+				unlinkSync(tmpPath);
+			} catch {}
 		}
 	}
 

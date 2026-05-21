@@ -125,6 +125,7 @@ export const IPC_MAX_RETRIES = 9;
 export const SOCKET_AVAILABILITY_TIMEOUT = 1000;
 export const IPC_HEADER_SIZE = 8;
 export const IPC_MESSAGE_TYPE_MAX = 5;
+export const MAX_IPC_PAYLOAD = 1024 * 1024;
 export const IPC_SOCKET_NAME = "discord-ipc";
 export const WINDOWS_IPC_PIPE_PATH = "\\\\?\\pipe\\discord-ipc";
 export const UNIX_TEMP_DIR_FALLBACK = "/tmp";

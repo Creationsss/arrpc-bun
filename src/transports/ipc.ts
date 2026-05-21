@@ -12,6 +12,7 @@ import {
 	IPCCloseCode,
 	IPCErrorCode,
 	IPCMessageType,
+	MAX_IPC_PAYLOAD,
 	RPC_PROTOCOL_VERSION,
 	SOCKET_AVAILABILITY_TIMEOUT,
 	UNIX_TEMP_DIR_FALLBACK,
@@ -53,20 +54,36 @@ function encode(type: number, data: unknown): Buffer {
 
 function read(socket: ExtendedSocket): void {
 	while (true) {
-		let resp = socket.read(IPC_HEADER_SIZE);
-		if (!resp) return;
+		const chunk = socket.read() as Buffer | null;
+		if (chunk === null) break;
+		socket._readBuffer = socket._readBuffer
+			? Buffer.concat([socket._readBuffer, chunk])
+			: chunk;
+	}
 
-		resp = Buffer.from(resp);
-		const type = resp.readInt32LE(0);
-		const dataSize = resp.readInt32LE(4);
+	let buffer = socket._readBuffer ?? Buffer.alloc(0);
 
-		if (type < 0 || type > IPC_MESSAGE_TYPE_MAX)
+	while (buffer.length >= IPC_HEADER_SIZE) {
+		const type = buffer.readInt32LE(0);
+		const dataSize = buffer.readInt32LE(4);
+
+		if (type < 0 || type > IPC_MESSAGE_TYPE_MAX) {
+			socket._readBuffer = buffer;
 			throw new Error("invalid type");
+		}
 
-		const data = socket.read(dataSize);
-		if (!data) throw new Error("failed reading data");
+		if (dataSize < 0 || dataSize > MAX_IPC_PAYLOAD) {
+			socket._readBuffer = buffer;
+			throw new Error(`payload too large: ${dataSize}`);
+		}
 
-		const parsedData = JSON.parse(Buffer.from(data).toString());
+		const frameEnd = IPC_HEADER_SIZE + dataSize;
+		if (buffer.length < frameEnd) break;
+
+		const data = buffer.subarray(IPC_HEADER_SIZE, frameEnd);
+		buffer = buffer.subarray(frameEnd);
+
+		const parsedData = JSON.parse(data.toString());
 
 		switch (type) {
 			case IPCMessageType.PING:
@@ -79,23 +96,31 @@ function read(socket: ExtendedSocket): void {
 				break;
 
 			case IPCMessageType.HANDSHAKE:
-				if (socket._handshook) throw new Error("already handshook");
+				if (socket._handshook) {
+					socket._readBuffer = buffer;
+					throw new Error("already handshook");
+				}
 				socket._handshook = true;
 				socket.emit("handshake", parsedData);
 				break;
 
 			case IPCMessageType.FRAME:
-				if (!socket._handshook)
+				if (!socket._handshook) {
+					socket._readBuffer = buffer;
 					throw new Error("need to handshake first");
+				}
 				socket.emit("request", parsedData);
 				break;
 
 			case IPCMessageType.CLOSE:
+				socket._readBuffer = undefined;
 				socket.end();
 				socket.destroy();
 				return;
 		}
 	}
+
+	socket._readBuffer = buffer.length > 0 ? buffer : undefined;
 }
 
 async function socketIsAvailable(socket: Socket): Promise<boolean> {

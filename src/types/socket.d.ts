@@ -10,6 +10,7 @@ export interface ExtendedSocket extends NetSocket {
 	socketId?: number;
 	lastPid?: number;
 	_handshook?: boolean;
+	_readBuffer?: Buffer;
 }
 
 export interface ExtendedWebSocket {

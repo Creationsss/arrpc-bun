@@ -1,3 +1,4 @@
+import { rename, rm } from "node:fs/promises";
 import { file, write } from "bun";
 import { IGNORE_LIST_COLOR } from "./constants";
 import { createLogger } from "./utils";
@@ -46,11 +47,14 @@ class IgnoreListManager {
 	private async saveToFile(): Promise<void> {
 		if (!this.filePath) return;
 
+		const tmpPath = `${this.filePath}.tmp`;
 		try {
 			const games = Array.from(this.ignoreSet);
-			await write(this.filePath, JSON.stringify(games, null, 2));
+			await write(tmpPath, JSON.stringify(games, null, 2));
+			await rename(tmpPath, this.filePath);
 		} catch (error) {
 			log.error("failed to save to file:", error);
+			await rm(tmpPath, { force: true }).catch(() => {});
 		}
 	}
 
