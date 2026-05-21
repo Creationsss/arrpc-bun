@@ -223,21 +223,6 @@ export default class ProcessServer {
 		log.info("started");
 	}
 
-	rebroadcastActivities(): void {
-		for (const [id, state] of this.gameState) {
-			this.handlers.activity(
-				id,
-				{
-					application_id: id,
-					name: state.name,
-					timestamps: { start: state.timestamp },
-				},
-				state.pid,
-				state.name,
-			);
-		}
-	}
-
 	private pathVariationsCache: Map<string, string[]> = new Map();
 
 	private scanResultsCache: Map<string, string[]> = new Map();

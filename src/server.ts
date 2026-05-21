@@ -81,10 +81,6 @@ export default class RPCServer extends EventEmitter {
 		return server;
 	}
 
-	rebroadcastActivities(): void {
-		this.processServer?.rebroadcastActivities();
-	}
-
 	shutdown(): void {
 		log.info("shutting down...");
 		this.removeAllListeners();

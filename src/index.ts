@@ -1,7 +1,6 @@
 import { env } from "bun";
 import {
 	init as initBridge,
-	onClientConnect as onBridgeClientConnect,
 	request as requestFromBridge,
 	send as sendToBridge,
 } from "./bridge";
@@ -74,10 +73,6 @@ server.on("guild-template", (code: string, callback: (ok: boolean) => void) => {
 
 server.on("link", (data: unknown, callback: (ok: boolean) => void) => {
 	requestFromBridge("LINK", data, callback);
-});
-
-onBridgeClientConnect(() => {
-	server.rebroadcastActivities();
 });
 
 if (env[ENV_PARENT_MONITOR]) {

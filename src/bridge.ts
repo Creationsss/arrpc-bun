@@ -29,13 +29,8 @@ const REQUEST_TIMEOUT_MS = 5000;
 
 const lastMsg = new Map<string, ActivityPayload>();
 const clients = new Set<ServerWebSocket<unknown>>();
-const clientConnectCallbacks: Array<() => void> = [];
 let bridgeServer: Server<unknown> | undefined;
 let nonceCounter = 0;
-
-export function onClientConnect(callback: () => void): void {
-	clientConnectCallbacks.push(callback);
-}
 
 interface PendingRequest {
 	resolve: (ok: boolean) => void;
@@ -289,7 +284,6 @@ export async function init(): Promise<void> {
 				websocket: {
 					open(ws) {
 						log.info("client connected");
-						clients.add(ws);
 
 						for (const msg of lastMsg.values()) {
 							if (msg && msg.activity != null) {
@@ -297,18 +291,7 @@ export async function init(): Promise<void> {
 							}
 						}
 
-						for (const cb of clientConnectCallbacks) {
-							try {
-								cb();
-							} catch (err) {
-								if (env[ENV_DEBUG]) {
-									log.info(
-										"client connect callback failed:",
-										err,
-									);
-								}
-							}
-						}
+						clients.add(ws);
 					},
 					async message(ws, data) {
 						try {
