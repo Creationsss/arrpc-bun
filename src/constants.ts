@@ -130,6 +130,7 @@ export const ALLOWED_DISCORD_ORIGINS: readonly string[] = [
 ];
 
 export const PROCESS_SCAN_INTERVAL = 5000;
+export const LOST_GAME_MISS_THRESHOLD = 2;
 export const EXECUTABLE_ARCH_SUFFIXES = ["64", ".x64", "x64", "_64"] as const;
 export const EXECUTABLE_EXACT_MATCH_PREFIX = ">";
 export const LINUX_PROC_DIR = "/proc";

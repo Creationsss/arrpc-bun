@@ -22,6 +22,7 @@ export interface GameState {
 	name: string;
 	pid: number;
 	timestamp: number;
+	missedScans: number;
 }
 
 export interface SteamLibrary {

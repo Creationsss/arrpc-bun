@@ -5,6 +5,7 @@ import {
 	EXECUTABLE_EXACT_MATCH_PREFIX,
 	getCustomDb,
 	getDetectableDb,
+	LOST_GAME_MISS_THRESHOLD,
 	PROCESS_COLOR,
 	PROCESS_SCAN_INTERVAL,
 } from "../constants";
@@ -332,6 +333,7 @@ export default class ProcessServer {
 				name,
 				pid,
 				timestamp: newTimestamp,
+				missedScans: 0,
 			});
 
 			this.handlers.activity(
@@ -346,6 +348,8 @@ export default class ProcessServer {
 				pid,
 				name,
 			);
+		} else if (state) {
+			state.missedScans = 0;
 		}
 
 		return "processed";
@@ -405,6 +409,14 @@ export default class ProcessServer {
 
 		try {
 			const processes = await NativeImpl.getProcesses();
+
+			if (processes.length === 0 && this.gameState.size > 0) {
+				log.info(
+					"process listing returned empty; skipping lost-game sweep",
+				);
+				return;
+			}
+
 			const ids = new Set<string>();
 			const activePids = new Set<number>();
 			const processedInThisScan = new Set<string>();
@@ -560,11 +572,23 @@ export default class ProcessServer {
 			}
 
 			for (const [id, state] of this.gameState) {
-				if (!ids.has(id)) {
-					log.info("lost game!", state.name);
-					this.handlers.activity(id, null, state.pid);
-					this.gameState.delete(id);
+				if (ids.has(id)) continue;
+
+				state.missedScans += 1;
+				if (state.missedScans < LOST_GAME_MISS_THRESHOLD) {
+					if (env[ENV_DEBUG]) {
+						log.info(
+							"missing game",
+							state.name,
+							`(${state.missedScans}/${LOST_GAME_MISS_THRESHOLD})`,
+						);
+					}
+					continue;
 				}
+
+				log.info("lost game!", state.name);
+				this.handlers.activity(id, null, state.pid);
+				this.gameState.delete(id);
 			}
 
 			for (const id of this.ignoredGames) {

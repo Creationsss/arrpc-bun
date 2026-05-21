@@ -230,7 +230,7 @@ export default class IPCServer {
 
 		socket.once(
 			"handshake",
-			async (params: { v?: string; client_id?: string }) => {
+			(params: { v?: string; client_id?: string }) => {
 				if (env[ENV_DEBUG]) log.info("handshake:", params);
 
 				const ver = Number.parseInt(
@@ -299,9 +299,18 @@ export default class IPCServer {
 				};
 
 				extSocket.clientId = clientId;
-				extSocket.clientName = await getAppNameById(clientId);
+				extSocket.clientName = "";
 
 				this.handlers.connection(extSocket);
+
+				getAppNameById(clientId)
+					.then((name) => {
+						extSocket.clientName = name;
+					})
+					.catch((e) => {
+						if (env[ENV_DEBUG])
+							log.info("getAppNameById failed:", e);
+					});
 			},
 		);
 	}
