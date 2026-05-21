@@ -151,7 +151,7 @@ export default class RPCServer extends EventEmitter {
 			"timestamps" in activity
 		) {
 			normalizeTimestamps(
-				(activity as { timestamps?: Record<string, number> })
+				(activity as { timestamps?: Record<string, unknown> })
 					.timestamps,
 			);
 		}

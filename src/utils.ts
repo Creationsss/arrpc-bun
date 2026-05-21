@@ -1,21 +1,39 @@
+import {
+	TIMESTAMP_MICROSECONDS_MAX,
+	TIMESTAMP_MILLISECONDS_MAX,
+	TIMESTAMP_SECONDS_MAX,
+} from "./constants";
 import type { PortBindOptions } from "./types";
 
 export { createLogger, logger, print, printError } from "./logger";
 
+function parseTimestampToMs(value: unknown): number | null {
+	let raw: number;
+	if (typeof value === "number") {
+		raw = value;
+	} else if (typeof value === "string") {
+		raw = Number(value);
+	} else {
+		return null;
+	}
+
+	if (!Number.isFinite(raw) || raw < 0) return null;
+
+	if (raw < TIMESTAMP_SECONDS_MAX) return Math.floor(raw * 1000);
+	if (raw < TIMESTAMP_MILLISECONDS_MAX) return Math.floor(raw);
+	if (raw < TIMESTAMP_MICROSECONDS_MAX) return Math.floor(raw / 1_000);
+	return Math.floor(raw / 1_000_000);
+}
+
 export function normalizeTimestamps(
-	timestamps: Record<string, number> | undefined,
+	timestamps: Record<string, unknown> | undefined,
 ): void {
 	if (!timestamps) return;
 
-	for (const x in timestamps) {
-		const key = x as keyof typeof timestamps;
-		const value = timestamps[key];
-		if (value) {
-			if (value < 10000000000) {
-				timestamps[key] = value * 1000;
-			} else if (value > 10000000000000) {
-				timestamps[key] = Math.floor(value / 1000);
-			}
+	for (const key of Object.keys(timestamps)) {
+		const ms = parseTimestampToMs(timestamps[key]);
+		if (ms !== null) {
+			timestamps[key] = ms;
 		}
 	}
 }

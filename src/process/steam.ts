@@ -5,6 +5,7 @@ import {
 	ENV_DEBUG,
 	ENV_NO_STEAM,
 	STEAM_COLOR,
+	STEAM_LOOKUP_REBUILD_COOLDOWN_MS,
 	STEAM_RUNTIME_PATHS,
 } from "../constants";
 import type { SteamLibrary } from "../types";
@@ -143,6 +144,7 @@ async function parseAppManifest(
 
 let steamAppLookup: Map<string, string> | null = null;
 let steamAppLookupPromise: Promise<Map<string, string>> | null = null;
+let steamAppLookupBuiltAt = 0;
 const resolvedPathCache: Map<string, string | null> = new Map();
 
 async function processBatched<T, R>(
@@ -219,10 +221,25 @@ function ensureSteamLookupPromise(): Promise<Map<string, string>> {
 		})
 		.then((lookup) => {
 			steamAppLookup = lookup;
+			steamAppLookupBuiltAt = Date.now();
 			return lookup;
 		});
 
 	return steamAppLookupPromise;
+}
+
+async function maybeRebuildEmptyLookup(): Promise<void> {
+	if (!steamAppLookup || steamAppLookup.size > 0) return;
+	if (Date.now() - steamAppLookupBuiltAt < STEAM_LOOKUP_REBUILD_COOLDOWN_MS) {
+		return;
+	}
+
+	if (env[ENV_DEBUG]) {
+		log.info("Steam lookup empty; retrying build");
+	}
+	steamAppLookup = null;
+	steamAppLookupPromise = null;
+	await ensureSteamLookupPromise();
 }
 
 export function initSteamLookup(): void {
@@ -256,6 +273,8 @@ export async function resolveSteamApp(
 		}
 	}
 
+	await maybeRebuildEmptyLookup();
+
 	let normalizedPath = processPath;
 	const isWinePath =
 		processPath.startsWith("Z:\\") || processPath.startsWith("z:\\");
@@ -280,7 +299,10 @@ export async function resolveSteamApp(
 		return null;
 	}
 
-	for (const [installPath, appName] of steamAppLookup) {
+	const lookup = steamAppLookup;
+	if (!lookup) return null;
+
+	for (const [installPath, appName] of lookup) {
 		const compareInstallPath =
 			process.platform === "win32"
 				? installPath.toLowerCase()
@@ -302,6 +324,8 @@ export async function resolveSteamApp(
 		}
 	}
 
-	resolvedPathCache.set(processPath, null);
+	if (lookup.size > 0) {
+		resolvedPathCache.set(processPath, null);
+	}
 	return null;
 }

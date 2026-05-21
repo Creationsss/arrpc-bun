@@ -118,6 +118,9 @@ export const RPC_PROTOCOL_VERSION = 1;
 export const DEFAULT_VERSION = "unknown";
 export const DEFAULT_SOCKET_ID = "0";
 export const TIMESTAMP_PRECISION_THRESHOLD = 2;
+export const TIMESTAMP_SECONDS_MAX = 10_000_000_000;
+export const TIMESTAMP_MILLISECONDS_MAX = 10_000_000_000_000;
+export const TIMESTAMP_MICROSECONDS_MAX = 10_000_000_000_000_000;
 export const ACTIVITY_FLAG_INSTANCE = 1 << 0;
 
 export const DISCORD_CDN_HOST = "cdn.discordapp.com";
@@ -157,6 +160,8 @@ export const STEAM_RUNTIME_PATHS = [
 	"steam-runtime",
 	"compatibilitytools.d",
 ];
+
+export const STEAM_LOOKUP_REBUILD_COOLDOWN_MS = 60_000;
 
 export const STEAM_PATH_INDICATORS_LINUX = [
 	"/.steam/",
