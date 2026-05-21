@@ -4,18 +4,31 @@ import embeddedDetectable from "../detectable.json";
 import embeddedFixes from "../detectable_fixes.json";
 import type { User } from "./types/user.d.ts";
 
-async function loadJson<T>(path: string, fallback: T): Promise<T> {
+async function loadJson<T>(
+	path: string,
+	fallback: T,
+	isValid?: (data: unknown) => boolean,
+): Promise<T> {
 	const f = file(path);
-	if (await f.exists()) {
-		return (await f.json()) as T;
+	if (!(await f.exists())) return fallback;
+
+	try {
+		const data = (await f.json()) as T;
+		if (isValid && !isValid(data)) return fallback;
+		return data;
+	} catch {
+		return fallback;
 	}
-	return fallback;
 }
 
 export async function getDetectableDb() {
 	const dataDir = process.env.ARRPC_DATA_DIR;
 	if (dataDir) {
-		return loadJson(join(dataDir, "detectable.json"), embeddedDetectable);
+		return loadJson(
+			join(dataDir, "detectable.json"),
+			embeddedDetectable,
+			(data) => Array.isArray(data) && data.length > 0,
+		);
 	}
 	return embeddedDetectable;
 }
@@ -67,7 +80,11 @@ export async function getAppNameById(
 export async function getCustomDb() {
 	const dataDir = process.env.ARRPC_DATA_DIR;
 	if (dataDir) {
-		return loadJson(join(dataDir, "detectable_fixes.json"), embeddedFixes);
+		return loadJson(
+			join(dataDir, "detectable_fixes.json"),
+			embeddedFixes,
+			(data) => Array.isArray(data),
+		);
 	}
 	return embeddedFixes;
 }
