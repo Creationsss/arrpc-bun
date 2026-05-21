@@ -98,6 +98,8 @@ export const STATE_FILE_MAX_INDEX = 9;
 
 export const BRIDGE_PORT_RANGE: [number, number] = [1337, 1347];
 export const BRIDGE_PORT_RANGE_HYPERV: [number, number] = [60000, 60020];
+export const BRIDGE_REFRESH_INTERVAL_MS = 30_000;
+export const MAX_CACHED_ACTIVITIES = 50;
 export const WEBSOCKET_PORT_RANGE: [number, number] = [6463, 6472];
 export const WEBSOCKET_PORT_RANGE_HYPERV: [number, number] = [60100, 60120];
 export const DEFAULT_LOCALHOST = "127.0.0.1";

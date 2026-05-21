@@ -137,7 +137,7 @@ export default class WSServer {
 		return this.server?.port;
 	}
 
-	async onConnection(ws: ServerWebSocket<WSData>): Promise<void> {
+	onConnection(ws: ServerWebSocket<WSData>): void {
 		const extSocket = ws as unknown as ExtendedWebSocket;
 		const { clientId, encoding } = ws.data;
 
@@ -152,8 +152,7 @@ export default class WSServer {
 
 		extSocket.clientId = clientId;
 		extSocket.encoding = encoding;
-		extSocket.clientName = await getAppNameById(clientId);
-
+		extSocket.clientName = "";
 		extSocket.send = (msg: RPCMessage | string) => {
 			if (env[ENV_DEBUG]) log.info("sending", msg);
 			const data = typeof msg === "string" ? msg : JSON.stringify(msg);
@@ -161,6 +160,14 @@ export default class WSServer {
 		};
 
 		this.handlers.connection(extSocket);
+
+		getAppNameById(clientId)
+			.then((name) => {
+				extSocket.clientName = name;
+			})
+			.catch((e) => {
+				if (env[ENV_DEBUG]) log.info("getAppNameById failed:", e);
+			});
 	}
 
 	onMessage(ws: ServerWebSocket<WSData>, msg: Buffer | string): void {

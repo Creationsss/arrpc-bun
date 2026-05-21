@@ -3,11 +3,13 @@ import {
 	BRIDGE_COLOR,
 	BRIDGE_PORT_RANGE,
 	BRIDGE_PORT_RANGE_HYPERV,
+	BRIDGE_REFRESH_INTERVAL_MS,
 	DEFAULT_LOCALHOST,
 	ENV_BRIDGE_HOST,
 	ENV_BRIDGE_PORT,
 	ENV_DEBUG,
 	ENV_NO_BRIDGE,
+	MAX_CACHED_ACTIVITIES,
 } from "./constants";
 import { ignoreList } from "./ignore-list";
 import { isHyperVEnabled } from "./platform";
@@ -187,7 +189,29 @@ export function getPort(): number | undefined {
 	return bridgeServer?.port;
 }
 
-const MAX_CACHED_ACTIVITIES = 50;
+function refreshClients(): void {
+	if (clients.size === 0 || lastMsg.size === 0) return;
+
+	if (env[ENV_DEBUG]) {
+		log.info(
+			"refreshing bridge clients, connected:",
+			clients.size,
+			"cached:",
+			lastMsg.size,
+		);
+	}
+
+	const serialized: string[] = [];
+	for (const msg of lastMsg.values()) {
+		serialized.push(JSON.stringify(msg));
+	}
+
+	for (const client of clients) {
+		for (const json of serialized) {
+			client.send(json);
+		}
+	}
+}
 
 export function send(msg: ActivityPayload): void {
 	if (env[ENV_DEBUG]) {
@@ -311,4 +335,6 @@ export async function init(): Promise<void> {
 	bridgeServer = server;
 	log.info("listening on", port);
 	stateManager.setServer("bridge", { host: hostname, port });
+
+	setInterval(refreshClients, BRIDGE_REFRESH_INTERVAL_MS);
 }
