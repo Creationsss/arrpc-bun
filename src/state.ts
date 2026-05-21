@@ -155,6 +155,7 @@ class StateManager {
 	cleanup(): void {
 		if (this.writeDebounceTimer) {
 			clearTimeout(this.writeDebounceTimer);
+			this.writeDebounceTimer = null;
 		}
 		if (!this.stateFilePath) return;
 

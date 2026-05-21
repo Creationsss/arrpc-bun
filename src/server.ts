@@ -48,6 +48,8 @@ function sendMessage(
 
 export default class RPCServer extends EventEmitter {
 	private processServer?: ProcessServer;
+	private wsServer?: WSServer;
+	private ipcServer?: IPCServer;
 
 	private constructor() {
 		super();
@@ -68,8 +70,8 @@ export default class RPCServer extends EventEmitter {
 			activity: server.onActivity,
 		};
 
-		new WSServer(handlers);
-		await IPCServer.create(handlers);
+		server.wsServer = new WSServer(handlers);
+		server.ipcServer = await IPCServer.create(handlers);
 
 		if (
 			!process.argv.includes(CLI_ARG_NO_PROCESS_SCANNING) &&
@@ -83,6 +85,9 @@ export default class RPCServer extends EventEmitter {
 
 	shutdown(): void {
 		log.info("shutting down...");
+		this.processServer?.shutdown();
+		this.wsServer?.shutdown();
+		this.ipcServer?.shutdown();
 		this.removeAllListeners();
 	}
 
@@ -197,6 +202,8 @@ export default class RPCServer extends EventEmitter {
 				const { activity, pid } = setActivityArgs;
 
 				if (!activity) {
+					socket.lastPid = pid ?? socket.lastPid;
+
 					sendMessage(socket, {
 						cmd,
 						data: null,

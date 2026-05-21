@@ -1,7 +1,7 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { spawn } from "bun";
-import { isSteamPath } from "../../constants";
+import { DARWIN_APP_BOUNDARY_REGEX, isSteamPath } from "../../constants";
 import type { ProcessInfo } from "../../types";
 import { resolveSteamApp } from "../steam";
 
@@ -10,7 +10,8 @@ const winExePathRegex =
 const parallelsDir = resolve(homedir(), "Applications (Parallels)");
 
 function parseCommandLine(cmdline: string): { exe: string; args: string[] } {
-	const appIndex = cmdline.toLowerCase().indexOf(".app");
+	const appMatch = cmdline.match(DARWIN_APP_BOUNDARY_REGEX);
+	const appIndex = appMatch?.index ?? -1;
 	if (appIndex !== -1) {
 		let pathEnd = appIndex + 4;
 

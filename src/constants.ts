@@ -192,6 +192,8 @@ export const STEAM_PATH_INDICATORS_WINDOWS_DARWIN = [
 	"/steamapps/",
 ] as const;
 
+export const DARWIN_APP_BOUNDARY_REGEX = /\.app(?=[/\s]|$)/i;
+
 export function isSteamPath(pathLower: string): boolean {
 	const normalizedPath = pathLower.replaceAll("\\", "/");
 	const indicators =

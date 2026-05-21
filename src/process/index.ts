@@ -202,6 +202,7 @@ export default class ProcessServer {
 	> = new Map();
 	private isScanning = false;
 	private ignoredGames: Set<string> = new Set();
+	private scanTimer?: ReturnType<typeof setInterval>;
 
 	constructor(handlers: Handlers) {
 		if (!NativeImpl) return;
@@ -218,9 +219,16 @@ export default class ProcessServer {
 			this.scan();
 		});
 
-		setInterval(this.scan, PROCESS_SCAN_INTERVAL);
+		this.scanTimer = setInterval(this.scan, PROCESS_SCAN_INTERVAL);
 
 		log.info("started");
+	}
+
+	shutdown(): void {
+		if (this.scanTimer) {
+			clearInterval(this.scanTimer);
+			this.scanTimer = undefined;
+		}
 	}
 
 	private pathVariationsCache: Map<string, string[]> = new Map();

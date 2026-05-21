@@ -137,6 +137,11 @@ export default class WSServer {
 		return this.server?.port;
 	}
 
+	shutdown(): void {
+		this.server?.stop();
+		this.server = undefined;
+	}
+
 	onConnection(ws: ServerWebSocket<WSData>): void {
 		const extSocket = ws as unknown as ExtendedWebSocket;
 		const { clientId, encoding } = ws.data;

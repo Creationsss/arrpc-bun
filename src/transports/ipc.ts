@@ -1,3 +1,4 @@
+import { unlinkSync } from "node:fs";
 import { createConnection, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import { env, file } from "bun";
@@ -205,6 +206,8 @@ async function getAvailableSocket(tries = 0): Promise<string> {
 
 export default class IPCServer {
 	private handlers!: Handlers;
+	private server?: ReturnType<typeof createServer>;
+	private socketPath?: string;
 
 	private constructor() {}
 
@@ -216,11 +219,13 @@ export default class IPCServer {
 		ipcServer.onMessage = ipcServer.onMessage.bind(ipcServer);
 
 		const server = createServer(ipcServer.onConnection);
+		ipcServer.server = server;
 		server.on("error", (e) => {
 			log.info("server error", e);
 		});
 
 		const socketPath = await getAvailableSocket();
+		ipcServer.socketPath = socketPath;
 
 		return new Promise((resolve) => {
 			server.listen(socketPath, () => {
@@ -229,6 +234,17 @@ export default class IPCServer {
 				resolve(ipcServer);
 			});
 		});
+	}
+
+	shutdown(): void {
+		this.server?.close();
+		this.server = undefined;
+		if (this.socketPath && process.platform !== "win32") {
+			try {
+				unlinkSync(this.socketPath);
+			} catch {}
+		}
+		this.socketPath = undefined;
 	}
 
 	onConnection(socket: Socket): void {

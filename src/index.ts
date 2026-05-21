@@ -3,6 +3,7 @@ import {
 	init as initBridge,
 	request as requestFromBridge,
 	send as sendToBridge,
+	shutdown as shutdownBridge,
 } from "./bridge";
 import { listDatabase, listDetected } from "./cli";
 import {
@@ -75,13 +76,28 @@ server.on("link", (data: unknown, callback: (ok: boolean) => void) => {
 	requestFromBridge("LINK", data, callback);
 });
 
+let parentMonitor: ReturnType<typeof setInterval> | undefined;
+let shuttingDown = false;
+
+const shutdown = () => {
+	if (shuttingDown) return;
+	shuttingDown = true;
+	log.info("received shutdown signal");
+	if (parentMonitor) {
+		clearInterval(parentMonitor);
+		parentMonitor = undefined;
+	}
+	stateManager.cleanup();
+	server.shutdown();
+	shutdownBridge();
+	process.exit(0);
+};
+
 if (env[ENV_PARENT_MONITOR]) {
 	const initialParentPid = process.ppid;
-	let shutdownTriggered = false;
 
 	const handleParentDeath = () => {
-		if (shutdownTriggered) return;
-		shutdownTriggered = true;
+		if (shuttingDown) return;
 		log.info("parent process died, shutting down");
 		shutdown();
 	};
@@ -98,18 +114,12 @@ if (env[ENV_PARENT_MONITOR]) {
 		}
 	});
 
-	const parentMonitor = setInterval(() => {
-		if (shutdownTriggered) {
-			clearInterval(parentMonitor);
-			return;
-		}
-
+	parentMonitor = setInterval(() => {
 		const currentParentPid = process.ppid;
 		if (currentParentPid !== initialParentPid) {
 			log.info(
 				`parent process changed from ${initialParentPid} to ${currentParentPid}, shutting down`,
 			);
-			clearInterval(parentMonitor);
 			handleParentDeath();
 			return;
 		}
@@ -120,18 +130,10 @@ if (env[ENV_PARENT_MONITOR]) {
 			log.info(
 				`parent process ${initialParentPid} no longer exists, shutting down`,
 			);
-			clearInterval(parentMonitor);
 			handleParentDeath();
 		}
 	}, 2000);
 }
-
-const shutdown = () => {
-	log.info("received shutdown signal");
-	stateManager.cleanup();
-	server.shutdown();
-	process.exit(0);
-};
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

@@ -30,6 +30,7 @@ const REQUEST_TIMEOUT_MS = 5000;
 const lastMsg = new Map<string, ActivityPayload>();
 const clients = new Set<ServerWebSocket<unknown>>();
 let bridgeServer: Server<unknown> | undefined;
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
 let nonceCounter = 0;
 
 interface PendingRequest {
@@ -223,9 +224,16 @@ export function send(msg: ActivityPayload): void {
 	} else {
 		lastMsg.set(msg.socketId, msg);
 
-		if (lastMsg.size > MAX_CACHED_ACTIVITIES) {
-			const firstKey = lastMsg.keys().next().value;
-			if (firstKey) lastMsg.delete(firstKey);
+		while (lastMsg.size > MAX_CACHED_ACTIVITIES) {
+			let evicted: string | undefined;
+			for (const key of lastMsg.keys()) {
+				if (key !== msg.socketId) {
+					evicted = key;
+					break;
+				}
+			}
+			if (!evicted) break;
+			lastMsg.delete(evicted);
 		}
 	}
 
@@ -319,5 +327,28 @@ export async function init(): Promise<void> {
 	log.info("listening on", port);
 	stateManager.setServer("bridge", { host: hostname, port });
 
-	setInterval(refreshClients, BRIDGE_REFRESH_INTERVAL_MS);
+	refreshTimer = setInterval(refreshClients, BRIDGE_REFRESH_INTERVAL_MS);
+}
+
+export function shutdown(): void {
+	if (refreshTimer) {
+		clearInterval(refreshTimer);
+		refreshTimer = undefined;
+	}
+
+	for (const pending of pendingRequests.values()) {
+		clearTimeout(pending.timer);
+		pending.resolve(false);
+	}
+	pendingRequests.clear();
+
+	for (const client of clients) {
+		try {
+			client.close();
+		} catch {}
+	}
+	clients.clear();
+
+	bridgeServer?.stop();
+	bridgeServer = undefined;
 }
