@@ -48,6 +48,15 @@ export function formatDuration(startTime: number): string {
 	return `running for ${minutes}m`;
 }
 
+export function setCapped<K, V>(map: Map<K, V>, key: K, value: V, max: number) {
+	map.set(key, value);
+
+	if (map.size > max) {
+		const oldest = map.keys().next().value as K;
+		map.delete(oldest);
+	}
+}
+
 export function getPortRange(
 	normalRange: [number, number],
 	hyperVRange: [number, number],

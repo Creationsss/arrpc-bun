@@ -1,12 +1,8 @@
 import { dlopen, FFIType, type Pointer, suffix } from "bun:ffi";
-import {
-	isSteamPath,
-	PROCESS_COLOR,
-	SYSTEM_EXECUTABLES,
-} from "../../constants";
+import { PROCESS_COLOR, SYSTEM_EXECUTABLES } from "../../constants";
 import type { ProcessInfo } from "../../types";
 import { createLogger } from "../../utils";
-import { resolveSteamApp } from "../steam";
+import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
 
 const log = createLogger("process:win32", ...PROCESS_COLOR);
 
@@ -209,6 +205,7 @@ function parseCommandLine(cmdLine: string): string[] {
 
 export async function getProcesses(): Promise<ProcessInfo[]> {
 	const processes: ProcessInfo[] = [];
+	const observerEnabled = isSteamObserverEnabled();
 
 	try {
 		const hSnapshot = kernel32.symbols.CreateToolhelp32Snapshot(
@@ -301,13 +298,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 						fullPath = exeFile;
 					}
 
-					const fullPathLower = fullPath.toLowerCase();
-					const steamPath = isSteamPath(fullPathLower)
-						? await resolveSteamApp(fullPath)
-						: null;
-					const finalPath = steamPath ?? fullPath;
+					const steam = await resolveSteamForProcess(
+						fullPath,
+						args,
+						observerEnabled,
+					);
 
-					processes.push([pid, finalPath, args]);
+					processes.push([pid, steam.path, args, steam.appid]);
 
 					if (++processCount % YIELD_INTERVAL === 0) {
 						await new Promise((r) => setImmediate(r));

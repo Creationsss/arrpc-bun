@@ -4,11 +4,10 @@ import { file, Glob } from "bun";
 import {
 	ANTI_CHEAT_EXECUTABLES,
 	CMDLINE_NULL_SEPARATOR,
-	isSteamPath,
 	LINUX_PROC_DIR,
 } from "../../constants";
 import type { ProcessInfo } from "../../types";
-import { resolveSteamApp } from "../steam";
+import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
 
 const ANTI_CHEAT_EXECUTABLES_LOWER = ANTI_CHEAT_EXECUTABLES.map((ac) =>
 	ac.toLowerCase(),
@@ -16,6 +15,7 @@ const ANTI_CHEAT_EXECUTABLES_LOWER = ANTI_CHEAT_EXECUTABLES.map((ac) =>
 
 export async function getProcesses(): Promise<ProcessInfo[]> {
 	const processes: ProcessInfo[] = [];
+	const observerEnabled = isSteamObserverEnabled();
 	const glob = new Glob("*");
 	const scanner = glob.scan({ cwd: LINUX_PROC_DIR, onlyFiles: false });
 
@@ -92,12 +92,15 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 
 					if (isAntiCheat) return null;
 
-					const steamPath = isSteamPath(exePathLower)
-						? await resolveSteamApp(exePath)
-						: null;
-					const finalPath = steamPath ?? exePath;
+					const args = parts.slice(1);
 
-					return [pidNum, finalPath, parts.slice(1)];
+					const steam = await resolveSteamForProcess(
+						exePath,
+						args,
+						observerEnabled,
+					);
+
+					return [pidNum, steam.path, args, steam.appid];
 				} catch {
 					return null;
 				}

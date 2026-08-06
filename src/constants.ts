@@ -92,6 +92,7 @@ export async function getCustomDb() {
 export const ENV_DEBUG = "ARRPC_DEBUG";
 export const ENV_NO_PROCESS_SCANNING = "ARRPC_NO_PROCESS_SCANNING";
 export const ENV_NO_STEAM = "ARRPC_NO_STEAM";
+export const ENV_NO_STEAM_OBSERVER = "ARRPC_NO_STEAM_OBSERVER";
 export const ENV_BRIDGE_PORT = "ARRPC_BRIDGE_PORT";
 export const ENV_BRIDGE_HOST = "ARRPC_BRIDGE_HOST";
 export const ENV_WEBSOCKET_HOST = "ARRPC_WEBSOCKET_HOST";
@@ -151,6 +152,8 @@ export const ALLOWED_DISCORD_ORIGINS: readonly string[] = [
 ];
 
 export const PROCESS_SCAN_INTERVAL = 5000;
+export const PATH_VARIATIONS_CACHE_MAX = 1000;
+export const SCAN_RESULTS_CACHE_MAX = 500;
 export const LOST_GAME_MISS_THRESHOLD = 2;
 export const EXECUTABLE_ARCH_SUFFIXES = ["64", ".x64", "x64", "_64"] as const;
 export const EXECUTABLE_EXACT_MATCH_PREFIX = ">";
@@ -180,6 +183,11 @@ export const STEAM_RUNTIME_PATHS = [
 ];
 
 export const STEAM_LOOKUP_REBUILD_COOLDOWN_MS = 60_000;
+
+export const STEAM_RESOLVED_PATH_CACHE_MAX = 1000;
+export const STEAM_SKU_DISTRIBUTOR = "steam";
+export const STEAM_LAUNCH_MARKER = "SteamLaunch";
+export const STEAM_LAUNCH_APPID_REGEX = /^AppId=(\d{1,9})$/i;
 
 export const STEAM_PATH_INDICATORS_LINUX = [
 	"/.steam/",

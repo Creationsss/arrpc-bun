@@ -56,6 +56,7 @@ Configure using environment variables:
 - `ARRPC_NO_BRIDGE` - Disable bridge server (if not needed)
 - `ARRPC_NO_PROCESS_SCANNING` - Disable automatic game detection
 - `ARRPC_NO_STEAM` - Disable Steam game detection and lookup
+- `ARRPC_NO_STEAM_OBSERVER` - Disable Steam AppID matching (keeps path-based Steam lookup)
 - `ARRPC_STATE_FILE` - Enable state file (stores active activities to `/tmp/arrpc-state-{0-9}`)
 - `ARRPC_IGNORE_LIST_FILE` - Path to ignore list file (games to skip detection)
 - `ARRPC_PARENT_MONITOR` - Monitor parent process and shutdown when parent dies

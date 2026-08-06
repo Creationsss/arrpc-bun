@@ -86,6 +86,12 @@ Complete feature overview of arRPC-Bun implementation.
   - Command-line argument extraction
 
 ### Steam Integration
+- **Steam AppID observer** - matches games by Steam AppID instead of executable name
+  - Resolves ~17,500 Steam AppIDs to Discord applications via `third_party_skus`
+  - AppID sourced from `appmanifest_*.acf` install paths (all platforms)
+  - AppID sourced from `reaper SteamLaunch AppId=` command line (Linux/macOS)
+  - Runs after executable matching, so first-party matches keep priority
+  - Disable with `ARRPC_NO_STEAM_OBSERVER`
 - Steam library detection (all platforms)
   - VDF parser for `libraryfolders.vdf`
   - App manifest parsing

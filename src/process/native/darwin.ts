@@ -1,9 +1,9 @@
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { spawn } from "bun";
-import { DARWIN_APP_BOUNDARY_REGEX, isSteamPath } from "../../constants";
+import { DARWIN_APP_BOUNDARY_REGEX } from "../../constants";
 import type { ProcessInfo } from "../../types";
-import { resolveSteamApp } from "../steam";
+import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
 
 const winExePathRegex =
 	/((?:(?:[a-zA-Z]:|\\\\[\w\s.]+\\[\w\s.$]+)\\(?:[\w\s.]+\\)*)(?:[\w\s.]*?)\.exe)/;
@@ -84,6 +84,7 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 		const lines = output.split("\n");
 
 		const processes: ProcessInfo[] = [];
+		const observerEnabled = isSteamObserverEnabled();
 
 		for (const line of lines) {
 			const trimmedLine = line.trim();
@@ -112,13 +113,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 
 			if (!exe) continue;
 
-			const exeLower = exe.toLowerCase();
-			const steamPath = isSteamPath(exeLower)
-				? await resolveSteamApp(exe)
-				: null;
-			const finalPath = steamPath ?? exe;
+			const steam = await resolveSteamForProcess(
+				exe,
+				args,
+				observerEnabled,
+			);
 
-			processes.push([pidNum, finalPath, args]);
+			processes.push([pidNum, steam.path, args, steam.appid]);
 		}
 
 		return processes;

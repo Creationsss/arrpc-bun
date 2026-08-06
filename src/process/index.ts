@@ -6,14 +6,17 @@ import {
 	getCustomDb,
 	getDetectableDb,
 	LOST_GAME_MISS_THRESHOLD,
+	PATH_VARIATIONS_CACHE_MAX,
 	PROCESS_COLOR,
 	PROCESS_SCAN_INTERVAL,
+	SCAN_RESULTS_CACHE_MAX,
 } from "../constants";
 import { ignoreList } from "../ignore-list";
 import type { DetectableApp, GameState, Handlers, Native } from "../types";
-import { createLogger } from "../utils";
+import { createLogger, setCapped } from "../utils";
 import * as Natives from "./native/index";
-import { initSteamLookup } from "./steam";
+import { initSteamLookup, isSteamObserverEnabled } from "./steam";
+import { buildSteamSkuIndex, lookupSteamApp } from "./steam-sku";
 
 const log = createLogger("process", ...PROCESS_COLOR);
 
@@ -108,6 +111,7 @@ async function loadDatabase(onComplete?: () => void): Promise<void> {
 		} catch {}
 
 		buildExecutableIndex();
+		buildSteamSkuIndex(DetectableDB);
 		dbLoaded = true;
 		log.info("database loaded with", DetectableDB.length, "entries");
 
@@ -264,12 +268,12 @@ export default class ProcessServer {
 			}
 		}
 
-		this.pathVariationsCache.set(normalizedPath, toCompare);
-
-		if (this.pathVariationsCache.size > 1000) {
-			const firstKey = this.pathVariationsCache.keys().next().value;
-			if (firstKey) this.pathVariationsCache.delete(firstKey);
-		}
+		setCapped(
+			this.pathVariationsCache,
+			normalizedPath,
+			toCompare,
+			PATH_VARIATIONS_CACHE_MAX,
+		);
 
 		return toCompare;
 	}
@@ -281,7 +285,7 @@ export default class ProcessServer {
 		_path: string,
 		processedInThisScan: Set<string>,
 		matchSource: string,
-	): "ignored" | "already_processed" | "processed" {
+	): void {
 		const shouldIgnore = ignoreList.shouldIgnore(id, _path, name);
 
 		if (shouldIgnore) {
@@ -289,13 +293,13 @@ export default class ProcessServer {
 				log.info("ignoring game:", name);
 			}
 			this.ignoredGames.add(id);
-			return "ignored";
+			return;
 		}
 
 		this.ignoredGames.delete(id);
 
 		if (processedInThisScan.has(id)) {
-			return "already_processed";
+			return;
 		}
 		processedInThisScan.add(id);
 
@@ -344,8 +348,6 @@ export default class ProcessServer {
 		} else if (state) {
 			state.missedScans = 0;
 		}
-
-		return "processed";
 	}
 
 	private getCandidateApps(pathVariations: string[]): DetectableApp[] {
@@ -413,9 +415,17 @@ export default class ProcessServer {
 			const ids = new Set<string>();
 			const activePids = new Set<number>();
 			const processedInThisScan = new Set<string>();
+			const steamCandidates = new Map<
+				string,
+				{ pid: number; path: string }
+			>();
 
-			for (const [pid, _path, args] of processes) {
+			for (const [pid, _path, args, steamAppId] of processes) {
 				activePids.add(pid);
+
+				if (steamAppId && !steamCandidates.has(steamAppId)) {
+					steamCandidates.set(steamAppId, { pid, path: _path });
+				}
 
 				let cached = this.pathCache.get(pid);
 				const normalizedPath = _path
@@ -549,13 +559,38 @@ export default class ProcessServer {
 				}
 
 				if (matchedIds.length > 0) {
-					this.scanResultsCache.set(cacheKey, matchedIds);
+					setCapped(
+						this.scanResultsCache,
+						cacheKey,
+						matchedIds,
+						SCAN_RESULTS_CACHE_MAX,
+					);
 				}
 			}
 
-			if (this.scanResultsCache.size > 500) {
-				const firstKey = this.scanResultsCache.keys().next().value;
-				if (firstKey) this.scanResultsCache.delete(firstKey);
+			if (isSteamObserverEnabled() && steamCandidates.size > 0) {
+				for (const [appid, { pid, path }] of steamCandidates) {
+					const app = lookupSteamApp(appid);
+					if (!app) {
+						if (env[ENV_DEBUG]) {
+							log.info(
+								`steam appid ${appid} has no detectable entry`,
+							);
+						}
+						continue;
+					}
+
+					this.handleDetectedGame(
+						app.id,
+						app.name,
+						pid,
+						path,
+						processedInThisScan,
+						`(steam appid ${appid})`,
+					);
+
+					ids.add(app.id);
+				}
 			}
 
 			for (const cachedPid of this.pathCache.keys()) {
