@@ -1,5 +1,5 @@
 import { readlink } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { file, Glob } from "bun";
 import {
 	ANTI_CHEAT_EXECUTABLES,
@@ -12,6 +12,16 @@ import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
 const ANTI_CHEAT_EXECUTABLES_LOWER = ANTI_CHEAT_EXECUTABLES.map((ac) =>
 	ac.toLowerCase(),
 );
+
+const WINDOWS_PATH_REGEX = /^[a-z]:[\\/]/i;
+
+function isRelativePath(exePath: string): boolean {
+	return (
+		!exePath.startsWith("/") &&
+		!exePath.startsWith("\\") &&
+		!WINDOWS_PATH_REGEX.test(exePath)
+	);
+}
 
 export async function getProcesses(): Promise<ProcessInfo[]> {
 	const processes: ProcessInfo[] = [];
@@ -80,6 +90,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 					}
 
 					if (!exePath) return null;
+
+					if (isRelativePath(exePath)) {
+						const cwd = await readlink(
+							join(LINUX_PROC_DIR, pid, "cwd"),
+						).catch(() => null);
+						if (cwd) exePath = resolve(cwd, exePath);
+					}
 
 					const exePathLower = exePath.toLowerCase();
 					const cmdlineLower = cmdline.toLowerCase();
