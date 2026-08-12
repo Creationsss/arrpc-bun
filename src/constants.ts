@@ -96,6 +96,7 @@ export const ENV_NO_STEAM_OBSERVER = "ARRPC_NO_STEAM_OBSERVER";
 export const ENV_BRIDGE_PORT = "ARRPC_BRIDGE_PORT";
 export const ENV_BRIDGE_HOST = "ARRPC_BRIDGE_HOST";
 export const ENV_WEBSOCKET_HOST = "ARRPC_WEBSOCKET_HOST";
+export const ENV_ALLOWED_ORIGINS = "ARRPC_ALLOWED_ORIGINS";
 export const ENV_NO_BRIDGE = "ARRPC_NO_BRIDGE";
 export const ENV_STATE_FILE = "ARRPC_STATE_FILE";
 export const ENV_DATA_DIR = "ARRPC_DATA_DIR";
@@ -150,6 +151,8 @@ export const ALLOWED_DISCORD_ORIGINS: readonly string[] = [
 	"https://ptb.discord.com",
 	"https://canary.discord.com",
 ];
+
+export const ORIGIN_WILDCARD = "*";
 
 export const PROCESS_SCAN_INTERVAL = 5000;
 export const PATH_VARIATIONS_CACHE_MAX = 1000;

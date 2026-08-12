@@ -63,6 +63,7 @@ Configure using environment variables:
 - `ARRPC_BRIDGE_PORT` - Bridge port (default: 1337)
 - `ARRPC_BRIDGE_HOST` - Bridge hostname (default: `127.0.0.1`)
 - `ARRPC_WEBSOCKET_HOST` - WebSocket hostname (default: `127.0.0.1`)
+- `ARRPC_ALLOWED_ORIGINS` - Extra WebSocket origins to allow, comma separated (e.g. `http://localhost,https://streamkit.discord.com`). Use `*` to disable origin checking entirely
 - `ARRPC_DATA_DIR` - Custom data directory for detectable databases
 
 Example:

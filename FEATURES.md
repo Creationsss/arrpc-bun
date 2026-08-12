@@ -129,7 +129,10 @@ Complete feature overview of arRPC-Bun implementation.
 
 ### Network & Compatibility
 - Hyper-V & WSL support (Windows)
-- Origin validation (Discord domains only)
+- Origin validation (Discord domains by default)
+  - Extra origins via `ARRPC_ALLOWED_ORIGINS`, comma separated
+  - `*` disables checking for third-party tooling (Stream Deck, streamkit, overlays)
+  - Requests without an `Origin` header are always allowed (non-browser clients)
 - Custom host configuration
 - Port conflict resolution
 
