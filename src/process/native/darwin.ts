@@ -3,7 +3,8 @@ import { resolve } from "node:path";
 import { spawn } from "bun";
 import { DARWIN_APP_BOUNDARY_REGEX } from "../../constants";
 import type { ProcessInfo } from "../../types";
-import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
+import { resolveProcessPath } from "../resolve";
+import { isSteamObserverEnabled } from "../steam";
 
 const winExePathRegex =
 	/((?:(?:[a-zA-Z]:|\\\\[\w\s.]+\\[\w\s.$]+)\\(?:[\w\s.]+\\)*)(?:[\w\s.]*?)\.exe)/;
@@ -113,13 +114,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 
 			if (!exe) continue;
 
-			const steam = await resolveSteamForProcess(
+			const resolved = await resolveProcessPath(
 				exe,
 				args,
 				observerEnabled,
 			);
 
-			processes.push([pidNum, steam.path, args, steam.appid]);
+			processes.push([pidNum, resolved.path, args, resolved.appid]);
 		}
 
 		return processes;

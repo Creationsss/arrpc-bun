@@ -4,7 +4,7 @@ import embeddedDetectable from "../detectable.json";
 import embeddedFixes from "../detectable_fixes.json";
 import type { User } from "./types/user.d.ts";
 
-async function loadJson<T>(
+export async function loadJson<T>(
 	path: string,
 	fallback: T,
 	isValid?: (data: unknown) => boolean,
@@ -93,6 +93,7 @@ export const ENV_DEBUG = "ARRPC_DEBUG";
 export const ENV_NO_PROCESS_SCANNING = "ARRPC_NO_PROCESS_SCANNING";
 export const ENV_NO_STEAM = "ARRPC_NO_STEAM";
 export const ENV_NO_STEAM_OBSERVER = "ARRPC_NO_STEAM_OBSERVER";
+export const ENV_NO_LAUNCHERS = "ARRPC_NO_LAUNCHERS";
 export const ENV_BRIDGE_PORT = "ARRPC_BRIDGE_PORT";
 export const ENV_BRIDGE_HOST = "ARRPC_BRIDGE_HOST";
 export const ENV_WEBSOCKET_HOST = "ARRPC_WEBSOCKET_HOST";
@@ -214,6 +215,9 @@ export function isSteamPath(pathLower: string): boolean {
 	return indicators.some((indicator) => normalizedPath.includes(indicator));
 }
 
+export const LAUNCHER_REFRESH_INTERVAL_MS = 300_000;
+export const LAUNCHER_RESOLVED_PATH_CACHE_MAX = 1000;
+
 export const SYSTEM_EXECUTABLES = new Set([
 	"system",
 	"registry",
@@ -243,6 +247,7 @@ export const IPC_COLOR: [number, number, number] = [254, 231, 92];
 export const WEBSOCKET_COLOR: [number, number, number] = [235, 69, 158];
 export const PROCESS_COLOR: [number, number, number] = [237, 66, 69];
 export const STEAM_COLOR: [number, number, number] = [150, 100, 200];
+export const LAUNCHER_COLOR: [number, number, number] = [120, 200, 160];
 export const CLI_COLOR: [number, number, number] = [100, 200, 255];
 export const STATE_COLOR: [number, number, number] = [255, 200, 100];
 export const IGNORE_LIST_COLOR: [number, number, number] = [255, 150, 50];

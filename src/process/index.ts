@@ -14,6 +14,7 @@ import {
 import { ignoreList } from "../ignore-list";
 import type { DetectableApp, GameState, Handlers, Native } from "../types";
 import { createLogger, setCapped } from "../utils";
+import { initLauncherLookup } from "./launchers";
 import * as Natives from "./native/index";
 import { initSteamLookup, isSteamObserverEnabled } from "./steam";
 import { buildSteamSkuIndex, lookupSteamApp } from "./steam-sku";
@@ -147,6 +148,11 @@ function argsContainString(args: string[], target: string): boolean {
 }
 
 const appNameRegex = /.app_name$/;
+const TRADEMARK_REGEX = /[®™©]/g;
+
+function normalizeAppName(name: string): string {
+	return name.toLowerCase().replace(TRADEMARK_REGEX, "").trim();
+}
 function matchesExecutable(
 	executable: {
 		name: string;
@@ -169,11 +175,10 @@ function matchesExecutable(
 
 	if (checkAppName) {
 		if (appNameRegex.test(firstCompare)) {
-			const appName = firstCompare
-				.replace(appNameRegex, "")
-				.toLowerCase();
-			const executableNameLower = executable.name.toLowerCase();
-			return executableNameLower === appName;
+			const appName = normalizeAppName(
+				firstCompare.replace(appNameRegex, ""),
+			);
+			return normalizeAppName(executable.name) === appName;
 		}
 	}
 
@@ -215,6 +220,7 @@ export default class ProcessServer {
 		this.scan = this.scan.bind(this);
 
 		initSteamLookup();
+		initLauncherLookup();
 
 		loadDatabase(() => {
 			if (env[ENV_DEBUG]) {

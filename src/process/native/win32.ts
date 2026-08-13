@@ -2,7 +2,8 @@ import { dlopen, FFIType, type Pointer, suffix } from "bun:ffi";
 import { PROCESS_COLOR, SYSTEM_EXECUTABLES } from "../../constants";
 import type { ProcessInfo } from "../../types";
 import { createLogger } from "../../utils";
-import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
+import { resolveProcessPath } from "../resolve";
+import { isSteamObserverEnabled } from "../steam";
 
 const log = createLogger("process:win32", ...PROCESS_COLOR);
 
@@ -298,13 +299,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 						fullPath = exeFile;
 					}
 
-					const steam = await resolveSteamForProcess(
+					const resolved = await resolveProcessPath(
 						fullPath,
 						args,
 						observerEnabled,
 					);
 
-					processes.push([pid, steam.path, args, steam.appid]);
+					processes.push([pid, resolved.path, args, resolved.appid]);
 
 					if (++processCount % YIELD_INTERVAL === 0) {
 						await new Promise((r) => setImmediate(r));

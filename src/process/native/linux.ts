@@ -7,7 +7,8 @@ import {
 	LINUX_PROC_DIR,
 } from "../../constants";
 import type { ProcessInfo } from "../../types";
-import { isSteamObserverEnabled, resolveSteamForProcess } from "../steam";
+import { resolveProcessPath } from "../resolve";
+import { isSteamObserverEnabled } from "../steam";
 
 const ANTI_CHEAT_EXECUTABLES_LOWER = ANTI_CHEAT_EXECUTABLES.map((ac) =>
 	ac.toLowerCase(),
@@ -111,13 +112,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 
 					const args = parts.slice(1);
 
-					const steam = await resolveSteamForProcess(
+					const resolved = await resolveProcessPath(
 						exePath,
 						args,
 						observerEnabled,
 					);
 
-					return [pidNum, steam.path, args, steam.appid];
+					return [pidNum, resolved.path, args, resolved.appid];
 				} catch {
 					return null;
 				}
