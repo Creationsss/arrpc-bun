@@ -48,6 +48,58 @@ export function formatDuration(startTime: number): string {
 	return `running for ${minutes}m`;
 }
 
+export function setCapped<K, V>(map: Map<K, V>, key: K, value: V, max: number) {
+	map.set(key, value);
+
+	if (map.size > max) {
+		const oldest = map.keys().next().value as K;
+		map.delete(oldest);
+	}
+}
+
+export interface LazyLookup<T> {
+	get(): T | null;
+	builtAt(): number;
+	ensure(): Promise<T>;
+	invalidate(): void;
+}
+
+export function createLazyLookup<T>(
+	build: () => Promise<T>,
+	empty: () => T,
+	onError?: (error: unknown) => void,
+): LazyLookup<T> {
+	let value: T | null = null;
+	let promise: Promise<T> | null = null;
+	let builtAt = 0;
+
+	return {
+		get: () => value,
+		builtAt: () => builtAt,
+		ensure() {
+			if (promise) return promise;
+
+			promise = build()
+				.catch((error) => {
+					onError?.(error);
+					return empty();
+				})
+				.then((built) => {
+					value = built;
+					builtAt = Date.now();
+					return built;
+				});
+
+			return promise;
+		},
+		invalidate() {
+			value = null;
+			promise = null;
+			builtAt = Date.now();
+		},
+	};
+}
+
 export function getPortRange(
 	normalRange: [number, number],
 	hyperVRange: [number, number],

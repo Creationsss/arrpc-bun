@@ -86,6 +86,12 @@ Complete feature overview of arRPC-Bun implementation.
   - Command-line argument extraction
 
 ### Steam Integration
+- **Steam AppID observer** - Game matching by Steam AppID rather than executable name
+  - ~17,500 Steam AppIDs mapped to Discord applications via `third_party_skus`
+  - AppID from `appmanifest_*.acf` install paths (all platforms)
+  - AppID from `reaper SteamLaunch AppId=` command line (Linux/macOS)
+  - Executable matching keeps priority
+  - Disable AppID matching (`ARRPC_NO_STEAM_OBSERVER`)
 - Steam library detection (all platforms)
   - VDF parser for `libraryfolders.vdf`
   - App manifest parsing
@@ -94,6 +100,16 @@ Complete feature overview of arRPC-Bun implementation.
   - Batch manifest processing
   - Multi-library support
   - Steam app lookup caching
+
+### Launcher Integration
+- **Heroic Games Launcher** - Epic (legendary), GOG, and sideloaded titles
+- **Lutris** - Installed games and directories from `pga.db`
+- Install directory resolved to the game's title
+  - Detection for generic executables (`Launcher.exe`, `game.exe`)
+  - Trademark normalization (`Rocket League®` matches `Rocket League`)
+  - Native and Flatpak install locations (Linux)
+  - Periodic refresh for newly installed games
+- Disable launcher detection (`ARRPC_NO_LAUNCHERS`)
 
 ### Game Database
 - Discord's detectable games database
@@ -123,7 +139,10 @@ Complete feature overview of arRPC-Bun implementation.
 
 ### Network & Compatibility
 - Hyper-V & WSL support (Windows)
-- Origin validation (Discord domains only)
+- Origin validation (Discord domains by default)
+  - Additional origins via `ARRPC_ALLOWED_ORIGINS`
+  - Wildcard `*` to disable checking
+  - Requests without an `Origin` header always allowed
 - Custom host configuration
 - Port conflict resolution
 

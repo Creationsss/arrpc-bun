@@ -17,6 +17,7 @@ export type {
 	GameState,
 	Native,
 	ProcessInfo,
+	SteamAppInfo,
 	SteamLibrary,
 } from "./process.d.ts";
 export type {

@@ -4,14 +4,61 @@ import { env, file, Glob } from "bun";
 import {
 	ENV_DEBUG,
 	ENV_NO_STEAM,
+	ENV_NO_STEAM_OBSERVER,
 	STEAM_COLOR,
+	STEAM_LAUNCH_APPID_REGEX,
+	STEAM_LAUNCH_MARKER,
 	STEAM_LOOKUP_REBUILD_COOLDOWN_MS,
+	STEAM_RESOLVED_PATH_CACHE_MAX,
 	STEAM_RUNTIME_PATHS,
 } from "../constants";
-import type { SteamLibrary } from "../types";
-import { createLogger } from "../utils";
+import type { SteamAppInfo, SteamLibrary } from "../types";
+import { createLazyLookup, createLogger, setCapped } from "../utils";
+import { findByInstallPath, normalizeInstallComparePath } from "./install-path";
+
+interface SteamResolution {
+	path: string;
+	appid: string;
+}
 
 const log = createLogger("steam", ...STEAM_COLOR);
+
+export function isSteamObserverEnabled(): boolean {
+	return !env[ENV_NO_STEAM] && !env[ENV_NO_STEAM_OBSERVER];
+}
+
+export function extractSteamAppId(args: string[]): string | undefined {
+	let sawMarker = false;
+
+	for (const arg of args) {
+		if (arg === STEAM_LAUNCH_MARKER) {
+			sawMarker = true;
+			continue;
+		}
+
+		if (!sawMarker) continue;
+
+		const match = arg.match(STEAM_LAUNCH_APPID_REGEX);
+		if (match?.[1]) {
+			if (env[ENV_DEBUG]) {
+				log.info(`found Steam launch appid ${match[1]}`);
+			}
+			return match[1];
+		}
+	}
+
+	return undefined;
+}
+
+export function pickSteamAppId(
+	resolvedAppId: string | undefined,
+	args: string[],
+	observerEnabled: boolean,
+): string | undefined {
+	if (resolvedAppId) return resolvedAppId;
+	if (!observerEnabled) return undefined;
+	return extractSteamAppId(args);
+}
 
 const defaultSteamPaths =
 	process.platform === "darwin"
@@ -142,10 +189,27 @@ async function parseAppManifest(
 	return null;
 }
 
-let steamAppLookup: Map<string, string> | null = null;
-let steamAppLookupPromise: Promise<Map<string, string>> | null = null;
-let steamAppLookupBuiltAt = 0;
-const resolvedPathCache: Map<string, string | null> = new Map();
+const steamLookup = createLazyLookup(
+	() => buildSteamLookup(),
+	() => new Map<string, SteamAppInfo>(),
+	(error) => {
+		if (env[ENV_DEBUG]) log.info("failed to build Steam lookup:", error);
+	},
+);
+
+const resolvedPathCache: Map<string, SteamResolution | null> = new Map();
+
+function cacheResolution(
+	processPath: string,
+	resolution: SteamResolution | null,
+): void {
+	setCapped(
+		resolvedPathCache,
+		processPath,
+		resolution,
+		STEAM_RESOLVED_PATH_CACHE_MAX,
+	);
+}
 
 async function processBatched<T, R>(
 	items: T[],
@@ -178,27 +242,38 @@ async function processLibraryApps<T>(
 	return results.filter((r): r is T => r !== null);
 }
 
-async function buildSteamLookup(): Promise<Map<string, string>> {
+async function buildSteamLookup(): Promise<Map<string, SteamAppInfo>> {
 	if (env[ENV_DEBUG]) log.info("building Steam app lookup table...");
 
 	const libraries = await parseSteamLibraries();
-	const lookup = new Map<string, string>();
+	const lookup = new Map<string, SteamAppInfo>();
 
 	for (const library of libraries) {
 		const results = await processLibraryApps(
 			library,
-			(_appid, steamappsPath, manifest) => {
+			(appid, steamappsPath, manifest) => {
 				const installPath = join(
 					steamappsPath,
 					"common",
 					manifest.installdir,
 				);
-				return [installPath, manifest.name] as [string, string];
+				return [installPath, { appid, name: manifest.name }] as [
+					string,
+					SteamAppInfo,
+				];
 			},
 		);
 
-		for (const [path, name] of results) {
-			lookup.set(path, name);
+		for (const [path, info] of results) {
+			const existing = lookup.get(path);
+			if (
+				existing &&
+				Number.parseInt(existing.appid, 10) <=
+					Number.parseInt(info.appid, 10)
+			) {
+				continue;
+			}
+			lookup.set(path, info);
 		}
 	}
 
@@ -209,37 +284,19 @@ async function buildSteamLookup(): Promise<Map<string, string>> {
 	return lookup;
 }
 
-function ensureSteamLookupPromise(): Promise<Map<string, string>> {
-	if (steamAppLookupPromise) return steamAppLookupPromise;
-
-	steamAppLookupPromise = buildSteamLookup()
-		.catch((error) => {
-			if (env[ENV_DEBUG]) {
-				log.info("failed to build Steam lookup:", error);
-			}
-			return new Map<string, string>();
-		})
-		.then((lookup) => {
-			steamAppLookup = lookup;
-			steamAppLookupBuiltAt = Date.now();
-			return lookup;
-		});
-
-	return steamAppLookupPromise;
-}
-
 async function maybeRebuildEmptyLookup(): Promise<void> {
-	if (!steamAppLookup || steamAppLookup.size > 0) return;
-	if (Date.now() - steamAppLookupBuiltAt < STEAM_LOOKUP_REBUILD_COOLDOWN_MS) {
+	const lookup = steamLookup.get();
+	if (!lookup || lookup.size > 0) return;
+	if (Date.now() - steamLookup.builtAt() < STEAM_LOOKUP_REBUILD_COOLDOWN_MS) {
 		return;
 	}
 
 	if (env[ENV_DEBUG]) {
 		log.info("Steam lookup empty; retrying build");
 	}
-	steamAppLookup = null;
-	steamAppLookupPromise = null;
-	await ensureSteamLookupPromise();
+
+	steamLookup.invalidate();
+	await steamLookup.ensure();
 }
 
 export function initSteamLookup(): void {
@@ -250,14 +307,12 @@ export function initSteamLookup(): void {
 		return;
 	}
 
-	if (!steamAppLookup) {
-		ensureSteamLookupPromise();
-	}
+	if (!steamLookup.get()) steamLookup.ensure();
 }
 
-export async function resolveSteamApp(
+export async function resolveSteamProcess(
 	processPath: string,
-): Promise<string | null> {
+): Promise<SteamResolution | null> {
 	if (env[ENV_NO_STEAM]) {
 		return null;
 	}
@@ -266,25 +321,10 @@ export async function resolveSteamApp(
 		return resolvedPathCache.get(processPath) ?? null;
 	}
 
-	if (!steamAppLookup) {
-		await ensureSteamLookupPromise();
-		if (!steamAppLookup) {
-			return null;
-		}
-	}
-
+	if (!steamLookup.get()) await steamLookup.ensure();
 	await maybeRebuildEmptyLookup();
 
-	let normalizedPath = processPath;
-	const isWinePath =
-		processPath.startsWith("Z:\\") || processPath.startsWith("z:\\");
-	if (isWinePath) {
-		normalizedPath = processPath.substring(2).replace(/\\/g, "/");
-	}
-
-	if (process.platform === "win32") {
-		normalizedPath = normalizedPath.replace(/\//g, "\\").toLowerCase();
-	}
+	const normalizedPath = normalizeInstallComparePath(processPath);
 
 	const isRuntimeProcess = STEAM_RUNTIME_PATHS.some((runtimePath) =>
 		normalizedPath.includes(runtimePath),
@@ -295,37 +335,39 @@ export async function resolveSteamApp(
 				`skipping Steam runtime/infrastructure process: ${processPath}`,
 			);
 		}
-		resolvedPathCache.set(processPath, null);
+		cacheResolution(processPath, null);
 		return null;
 	}
 
-	const lookup = steamAppLookup;
+	const lookup = steamLookup.get();
 	if (!lookup) return null;
 
-	for (const [installPath, appName] of lookup) {
-		const compareInstallPath =
-			process.platform === "win32"
-				? installPath.toLowerCase()
-				: installPath;
-		if (normalizedPath.startsWith(compareInstallPath)) {
-			const resolvedPath = join(installPath, `${appName}.app_name`);
-			if (env[ENV_DEBUG]) {
-				if (isWinePath) {
-					log.info(
-						`normalized Wine path: ${processPath} -> ${normalizedPath}`,
-					);
-				}
-				log.info(`detected Steam app: "${appName}"`);
-				log.info(`  process path: ${processPath}`);
-				log.info(`  resolved to: ${resolvedPath}`);
-			}
-			resolvedPathCache.set(processPath, resolvedPath);
-			return resolvedPath;
+	const hit = findByInstallPath(lookup, normalizedPath);
+
+	if (hit) {
+		const resolvedPath = join(
+			hit.installPath,
+			`${hit.value.name}.app_name`,
+		);
+		const resolution: SteamResolution = {
+			path: resolvedPath,
+			appid: hit.value.appid,
+		};
+
+		if (env[ENV_DEBUG]) {
+			log.info(
+				`detected Steam app: "${hit.value.name}" (appid ${hit.value.appid})`,
+			);
+			log.info(`  process path: ${processPath}`);
+			log.info(`  resolved to: ${resolvedPath}`);
 		}
+
+		cacheResolution(processPath, resolution);
+		return resolution;
 	}
 
 	if (lookup.size > 0) {
-		resolvedPathCache.set(processPath, null);
+		cacheResolution(processPath, null);
 	}
 	return null;
 }

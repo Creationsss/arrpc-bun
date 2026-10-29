@@ -2,9 +2,11 @@ import { env, type Server, type ServerWebSocket, serve } from "bun";
 import {
 	ALLOWED_DISCORD_ORIGINS,
 	DEFAULT_LOCALHOST,
+	ENV_ALLOWED_ORIGINS,
 	ENV_DEBUG,
 	ENV_WEBSOCKET_HOST,
 	getAppNameById,
+	ORIGIN_WILDCARD,
 	RPC_PROTOCOL_VERSION,
 	WEBSOCKET_COLOR,
 	WEBSOCKET_PORT_RANGE,
@@ -18,6 +20,28 @@ import type { ExtendedWebSocket, Handlers, RPCMessage, WSData } from "../types";
 import { createLogger, getPortRange, tryBindToPort } from "../utils";
 
 const log = createLogger("websocket", ...WEBSOCKET_COLOR);
+
+function normalizeOrigin(origin: string): string {
+	return origin.trim().replace(/\/+$/, "").toLowerCase();
+}
+
+const extraOrigins = (env[ENV_ALLOWED_ORIGINS] ?? "")
+	.split(",")
+	.map(normalizeOrigin)
+	.filter(Boolean);
+
+const allowsAllOrigins = extraOrigins.includes(ORIGIN_WILDCARD);
+
+const allowedOrigins = new Set([
+	...ALLOWED_DISCORD_ORIGINS.map(normalizeOrigin),
+	...extraOrigins.filter((origin) => origin !== ORIGIN_WILDCARD),
+]);
+
+function isOriginAllowed(origin: string): boolean {
+	if (origin === "") return true;
+	if (allowsAllOrigins) return true;
+	return allowedOrigins.has(normalizeOrigin(origin));
+}
 
 export default class WSServer {
 	private handlers!: Handlers;
@@ -42,6 +66,12 @@ export default class WSServer {
 
 		const hostname = env[ENV_WEBSOCKET_HOST] || DEFAULT_LOCALHOST;
 
+		if (allowsAllOrigins) {
+			log.warn("origin checking disabled, any website may connect");
+		} else if (extraOrigins.length > 0) {
+			log.info("additionally allowed origins:", extraOrigins.join(", "));
+		}
+
 		const { server, port } = tryBindToPort({
 			portRange,
 			serverName: "WebSocket server",
@@ -62,11 +92,12 @@ export default class WSServer {
 						const clientId = params.get("client_id") ?? "";
 						const origin = req.headers.get("origin") ?? "";
 
-						if (
-							origin !== "" &&
-							!ALLOWED_DISCORD_ORIGINS.includes(origin)
-						) {
-							log.info("disallowed origin", origin);
+						if (!isOriginAllowed(origin)) {
+							log.info(
+								"disallowed origin",
+								origin,
+								`(allow it with ${ENV_ALLOWED_ORIGINS})`,
+							);
 							return new Response("Disallowed origin", {
 								status: 403,
 							});
@@ -155,13 +186,15 @@ export default class WSServer {
 			);
 		}
 
+		const rawSend = ws.send.bind(ws);
+
 		extSocket.clientId = clientId;
 		extSocket.encoding = encoding;
 		extSocket.clientName = "";
 		extSocket.send = (msg: RPCMessage | string) => {
 			if (env[ENV_DEBUG]) log.info("sending", msg);
 			const data = typeof msg === "string" ? msg : JSON.stringify(msg);
-			ws.send(data);
+			rawSend(data);
 		};
 
 		this.handlers.connection(extSocket);

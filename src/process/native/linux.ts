@@ -1,21 +1,32 @@
 import { readlink } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { file, Glob } from "bun";
 import {
 	ANTI_CHEAT_EXECUTABLES,
 	CMDLINE_NULL_SEPARATOR,
-	isSteamPath,
 	LINUX_PROC_DIR,
 } from "../../constants";
 import type { ProcessInfo } from "../../types";
-import { resolveSteamApp } from "../steam";
+import { resolveProcessPath } from "../resolve";
+import { isSteamObserverEnabled } from "../steam";
 
 const ANTI_CHEAT_EXECUTABLES_LOWER = ANTI_CHEAT_EXECUTABLES.map((ac) =>
 	ac.toLowerCase(),
 );
 
+const WINDOWS_PATH_REGEX = /^[a-z]:[\\/]/i;
+
+function isRelativePath(exePath: string): boolean {
+	return (
+		!exePath.startsWith("/") &&
+		!exePath.startsWith("\\") &&
+		!WINDOWS_PATH_REGEX.test(exePath)
+	);
+}
+
 export async function getProcesses(): Promise<ProcessInfo[]> {
 	const processes: ProcessInfo[] = [];
+	const observerEnabled = isSteamObserverEnabled();
 	const glob = new Glob("*");
 	const scanner = glob.scan({ cwd: LINUX_PROC_DIR, onlyFiles: false });
 
@@ -81,6 +92,13 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 
 					if (!exePath) return null;
 
+					if (isRelativePath(exePath)) {
+						const cwd = await readlink(
+							join(LINUX_PROC_DIR, pid, "cwd"),
+						).catch(() => null);
+						if (cwd) exePath = resolve(cwd, exePath);
+					}
+
 					const exePathLower = exePath.toLowerCase();
 					const cmdlineLower = cmdline.toLowerCase();
 
@@ -92,12 +110,15 @@ export async function getProcesses(): Promise<ProcessInfo[]> {
 
 					if (isAntiCheat) return null;
 
-					const steamPath = isSteamPath(exePathLower)
-						? await resolveSteamApp(exePath)
-						: null;
-					const finalPath = steamPath ?? exePath;
+					const args = parts.slice(1);
 
-					return [pidNum, finalPath, parts.slice(1)];
+					const resolved = await resolveProcessPath(
+						exePath,
+						args,
+						observerEnabled,
+					);
+
+					return [pidNum, resolved.path, args, resolved.appid];
 				} catch {
 					return null;
 				}

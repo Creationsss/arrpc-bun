@@ -4,7 +4,7 @@ import embeddedDetectable from "../detectable.json";
 import embeddedFixes from "../detectable_fixes.json";
 import type { User } from "./types/user.d.ts";
 
-async function loadJson<T>(
+export async function loadJson<T>(
 	path: string,
 	fallback: T,
 	isValid?: (data: unknown) => boolean,
@@ -92,9 +92,12 @@ export async function getCustomDb() {
 export const ENV_DEBUG = "ARRPC_DEBUG";
 export const ENV_NO_PROCESS_SCANNING = "ARRPC_NO_PROCESS_SCANNING";
 export const ENV_NO_STEAM = "ARRPC_NO_STEAM";
+export const ENV_NO_STEAM_OBSERVER = "ARRPC_NO_STEAM_OBSERVER";
+export const ENV_NO_LAUNCHERS = "ARRPC_NO_LAUNCHERS";
 export const ENV_BRIDGE_PORT = "ARRPC_BRIDGE_PORT";
 export const ENV_BRIDGE_HOST = "ARRPC_BRIDGE_HOST";
 export const ENV_WEBSOCKET_HOST = "ARRPC_WEBSOCKET_HOST";
+export const ENV_ALLOWED_ORIGINS = "ARRPC_ALLOWED_ORIGINS";
 export const ENV_NO_BRIDGE = "ARRPC_NO_BRIDGE";
 export const ENV_STATE_FILE = "ARRPC_STATE_FILE";
 export const ENV_DATA_DIR = "ARRPC_DATA_DIR";
@@ -150,7 +153,11 @@ export const ALLOWED_DISCORD_ORIGINS: readonly string[] = [
 	"https://canary.discord.com",
 ];
 
+export const ORIGIN_WILDCARD = "*";
+
 export const PROCESS_SCAN_INTERVAL = 5000;
+export const PATH_VARIATIONS_CACHE_MAX = 1000;
+export const SCAN_RESULTS_CACHE_MAX = 500;
 export const LOST_GAME_MISS_THRESHOLD = 2;
 export const EXECUTABLE_ARCH_SUFFIXES = ["64", ".x64", "x64", "_64"] as const;
 export const EXECUTABLE_EXACT_MATCH_PREFIX = ">";
@@ -181,6 +188,11 @@ export const STEAM_RUNTIME_PATHS = [
 
 export const STEAM_LOOKUP_REBUILD_COOLDOWN_MS = 60_000;
 
+export const STEAM_RESOLVED_PATH_CACHE_MAX = 1000;
+export const STEAM_SKU_DISTRIBUTOR = "steam";
+export const STEAM_LAUNCH_MARKER = "SteamLaunch";
+export const STEAM_LAUNCH_APPID_REGEX = /^AppId=(\d{1,9})$/i;
+
 export const STEAM_PATH_INDICATORS_LINUX = [
 	"/.steam/",
 	"/.local/share/steam/",
@@ -202,6 +214,9 @@ export function isSteamPath(pathLower: string): boolean {
 			: STEAM_PATH_INDICATORS_WINDOWS_DARWIN;
 	return indicators.some((indicator) => normalizedPath.includes(indicator));
 }
+
+export const LAUNCHER_REFRESH_INTERVAL_MS = 300_000;
+export const LAUNCHER_RESOLVED_PATH_CACHE_MAX = 1000;
 
 export const SYSTEM_EXECUTABLES = new Set([
 	"system",
@@ -232,6 +247,7 @@ export const IPC_COLOR: [number, number, number] = [254, 231, 92];
 export const WEBSOCKET_COLOR: [number, number, number] = [235, 69, 158];
 export const PROCESS_COLOR: [number, number, number] = [237, 66, 69];
 export const STEAM_COLOR: [number, number, number] = [150, 100, 200];
+export const LAUNCHER_COLOR: [number, number, number] = [120, 200, 160];
 export const CLI_COLOR: [number, number, number] = [100, 200, 255];
 export const STATE_COLOR: [number, number, number] = [255, 200, 100];
 export const IGNORE_LIST_COLOR: [number, number, number] = [255, 150, 50];
